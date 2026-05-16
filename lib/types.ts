@@ -48,6 +48,7 @@ export interface ItineraryItem {
   title: string;
   city: string;
   date: string;
+  time?: string;
   timeBlock: TimeBlock;
   address: string;
   notes: string;
