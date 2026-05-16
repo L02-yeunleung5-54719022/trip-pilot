@@ -272,6 +272,16 @@ function getWishlistName(item: WishlistItem) {
   return (item as WishlistItem & { title?: string }).placeName || (item as WishlistItem & { title?: string }).title || "";
 }
 
+function cleanRouteCityName(value?: string) {
+  if (!value) return "";
+  return value
+    .replace(/^.*：/, "")
+    .replace(/^.*:/, "")
+    .replace(/^(航班|火車|巴士|回程航班|出發航班|轉機航班)\s*/, "")
+    .replace(/^(FLIGHT|TRAIN|BUS)\s*/i, "")
+    .trim();
+}
+
 
 function getAccommodationCheckInTime() {
   return "15:00";
@@ -359,8 +369,7 @@ function getItemType(item: TimedItineraryItem) {
     text.includes("airport") ||
     text.includes("航班") ||
     text.includes("機場") ||
-    text.includes("起飛") ||
-    text.includes("抵達")
+    text.includes("起飛")
   ) {
     return { label: "航班", icon: "✈️", color: "bg-blue-50 text-blue-700" };
   }
@@ -1718,8 +1727,11 @@ function TransportTicketCard({
     ? item.city.split("/").map(part => part.trim()).filter(Boolean)
     : [];
 
-  const fromCity = cityParts[0] || "FROM";
-  const toCity = cityParts[1] || "TO";
+  const routeText = `${item.title || ""} ${item.notes || ""}`;
+  const routeMatch = routeText.match(/([^｜\n]+?)\s*(?:→|->)\s*([^｜\n]+)/);
+
+  const fromCity = cityParts[0] || cleanRouteCityName(routeMatch?.[1]) || "FROM";
+  const toCity = cityParts[1] || cleanRouteCityName(routeMatch?.[2]) || "TO";
   const fromCode = getCityCode(fromCity);
   const toCode = getCityCode(toCity);
 
