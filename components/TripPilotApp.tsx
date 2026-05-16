@@ -253,8 +253,19 @@ function getCountdownText(item?: TimedItineraryItem) {
 }
 function getArrivalTimeFromNotes(item: TimedItineraryItem) {
   const text = `${item.notes || ""} ${item.title || ""}`;
-  const match = text.match(/(?:→|->|到|抵達)\s*(\d{1,2}:\d{2})/);
-  return match?.[1] || "";
+
+  const patterns = [
+    /(?:→|->)\s*(?:翌日\s*)?(\d{1,2}:\d{2})/,
+    /(\d{1,2}:\d{2})\s*(?:抵達|到達)/,
+    /抵達\s*(\d{1,2}:\d{2})/
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+
+  return "";
 }
 
 function getWishlistName(item: WishlistItem) {
