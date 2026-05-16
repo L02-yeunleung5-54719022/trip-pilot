@@ -616,11 +616,11 @@ export default function TripPilotApp() {
         {activeTab === "map" && <MapPage data={data} selectedDate={selectedDate} />}
 
         {activeTab === "budget" && (
-          <BudgetPage data={data} update={update} onAdd={() => setShowAddExpense(true)} />
+          <BudgetPage data={data} update={update} onAdd={() => setShowAddExpense(true)} onEdit={setEditingExpense} />
         )}
 
         {activeTab === "shopping" && (
-          <ShoppingPage data={data} update={update} onAdd={() => setShowAddShopping(true)} />
+          <ShoppingPage data={data} update={update} onAdd={() => setShowAddShopping(true)} onEdit={setEditingShopping} />
         )}
 
         {activeTab === "info" && (
