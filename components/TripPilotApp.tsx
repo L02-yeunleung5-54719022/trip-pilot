@@ -257,6 +257,10 @@ function getArrivalTimeFromNotes(item: TimedItineraryItem) {
   return match?.[1] || "";
 }
 
+function getWishlistName(item: WishlistItem) {
+  return (item as WishlistItem & { title?: string }).placeName || (item as WishlistItem & { title?: string }).title || "";
+}
+
 
 function getAccommodationCheckInTime() {
   return "15:00";
@@ -2196,7 +2200,7 @@ function ShoppingPage({
   }
 
   function addWishlistToItinerary(item: WishlistItem, date: string) {
-    const title = item.placeName || "願望項目";
+    const title = getWishlistName(item) || "願望項目";
     const nextItem: TimedItineraryItem = {
       id: uid("wish-itin"),
       title,
@@ -2288,7 +2292,7 @@ function ShoppingCard({
               <p className="text-xs font-black text-[#C86A45]">
                 {item.city || "未設定城市"} · {item.priority}
               </p>
-              <h3 className="mt-1 text-xl font-black text-[#183B63]">{item.placeName}</h3>
+              <h3 className="mt-1 text-xl font-black text-[#183B63]">{getWishlistName(item) || "未命名願望"}</h3>
             </div>
 
             <div className="text-right">
@@ -2857,7 +2861,7 @@ function AddShoppingModal({
   onClose: () => void;
   onSave: (item: WishlistItem) => void;
 }) {
-  const [placeName, setPlaceName] = useState(initialItem?.placeName || "");
+  const [placeName, setPlaceName] = useState(initialItem ? getWishlistName(initialItem) : "");
   const [city, setCity] = useState(initialItem?.city || "Vienna");
   const [category, setCategory] = useState(initialItem?.category || "Attraction");
   const [priority, setPriority] = useState(initialItem?.priority || "Nice to Go");
@@ -2869,7 +2873,10 @@ function AddShoppingModal({
   const [notes, setNotes] = useState(initialItem?.notes || "");
 
   function submit() {
-    if (!placeName.trim()) return;
+    if (!placeName.trim()) {
+      alert("請先輸入名稱。");
+      return;
+    }
 
     onSave({
       id: initialItem?.id || uid("wish"),
