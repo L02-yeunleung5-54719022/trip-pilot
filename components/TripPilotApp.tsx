@@ -400,8 +400,6 @@ export default function TripPilotApp() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#F7F1E7] via-[#F3EFE8] to-[#EEF4F1] pb-24 text-[#183B63]">
       <div className="mx-auto max-w-md px-4 pt-[calc(env(safe-area-inset-top)+0.25rem)]">
-        <TopBar />
-
         {activeTab === "trip" && (
           <TripHome
             data={data}
@@ -485,22 +483,6 @@ export default function TripPilotApp() {
   );
 }
 
-function TopBar() {
-  return (
-    <div className="safe-top mb-4 flex items-center justify-between">
-      <div>
-        <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#C86A45]">
-          TripPilot v2
-        </p>
-        <h1 className="text-xl font-black text-[#183B63]">中歐旅行助手</h1>
-      </div>
-
-      <div className="grid h-11 w-11 place-items-center rounded-full border border-[#E8DED0] bg-[#FFFDF8] text-xl shadow-[0_8px_20px_rgba(24,59,99,0.08)]">
-        🧳
-      </div>
-    </div>
-  );
-}
 
 function TripHero({ data }: { data: TripDataV2 }) {
   const totalAccommodation = data.accommodations.reduce((sum, x) => sum + x.totalCost, 0);
@@ -748,66 +730,66 @@ function TripHome({
 
   return (
     <div className="space-y-5">
-      <TripHero data={data} />
+      {isPreTrip ? (
+        <TripHero data={data} />
+      ) : (
+        <DailySummaryCard
+          data={data}
+          selectedDate={selectedDate}
+          city={city}
+          weatherCity={weatherCity}
+          dayItems={dayItems}
+          completedCount={completedCount}
+          nextItem={nextItem}
+        />
+      )}
 
       <DaySelector dates={dates} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
 
       {isPreTrip ? (
         <ChecklistPanel data={data} update={update} />
       ) : (
-        <>
-          <DailySummaryCard
-            data={data}
-            selectedDate={selectedDate}
-            city={city}
-            weatherCity={weatherCity}
-            dayItems={dayItems}
-            completedCount={completedCount}
-            nextItem={nextItem}
-          />
-
-          <section>
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-bold text-[#C86A45]">Timeline</p>
-                <h2 className="text-2xl font-black text-[#183B63]">今日行程</h2>
-              </div>
-
-              <button
-                onClick={onAdd}
-                className="rounded-full bg-[#C86A45] px-4 py-3 text-sm font-black text-white shadow-[0_8px_20px_rgba(200,106,69,0.28)]"
-              >
-                ＋新增
-              </button>
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold text-[#C86A45]">Timeline</p>
+              <h2 className="text-2xl font-black text-[#183B63]">今日行程</h2>
             </div>
 
-            <div className="space-y-4">
-              {dayItems.length === 0 && (
-                <EmptyCard icon="🗓" title="今日未有行程" text="可以加入景點、交通、餐廳或住宿安排。" />
-              )}
+            <button
+              onClick={onAdd}
+              className="rounded-full bg-[#C86A45] px-4 py-3 text-sm font-black text-white shadow-[0_8px_20px_rgba(200,106,69,0.28)]"
+            >
+              ＋新增
+            </button>
+          </div>
 
-              {dayItems.map(item => {
-                const isAuto = item.id.startsWith("auto-");
-                const moveIndex = nonAutoDayItems.findIndex(movable => movable.id === item.id);
+          <div className="space-y-4">
+            {dayItems.length === 0 && (
+              <EmptyCard icon="🗓" title="今日未有行程" text="可以加入景點、交通、餐廳或住宿安排。" />
+            )}
 
-                return (
-                  <TimelineCard
-                    key={item.id}
-                    item={item}
-                    isAuto={isAuto}
-                    canMoveUp={!isAuto && moveIndex > 0}
-                    canMoveDown={!isAuto && moveIndex >= 0 && moveIndex < nonAutoDayItems.length - 1}
-                    onToggle={() => toggleComplete(item.id)}
-                    onDelete={() => deleteItem(item.id)}
-                    onEdit={() => onEdit(item)}
-                    onMoveUp={() => moveItem(item.id, "up")}
-                    onMoveDown={() => moveItem(item.id, "down")}
-                  />
-                );
-              })}
-            </div>
-          </section>
-        </>
+            {dayItems.map(item => {
+              const isAuto = item.id.startsWith("auto-");
+              const moveIndex = nonAutoDayItems.findIndex(movable => movable.id === item.id);
+
+              return (
+                <TimelineCard
+                  key={item.id}
+                  item={item}
+                  isAuto={isAuto}
+                  canMoveUp={!isAuto && moveIndex > 0}
+                  canMoveDown={!isAuto && moveIndex >= 0 && moveIndex < nonAutoDayItems.length - 1}
+                  onToggle={() => toggleComplete(item.id)}
+                  onDelete={() => deleteItem(item.id)}
+                  onEdit={() => onEdit(item)}
+                  onMoveUp={() => moveItem(item.id, "up")}
+                  onMoveDown={() => moveItem(item.id, "down")}
+                />
+              );
+            })}
+          </div>
+        </section>
       )}
     </div>
   );
