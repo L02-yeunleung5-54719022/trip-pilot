@@ -1,41 +1,37 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 export const metadata: Metadata = {
-  title: "TripPilot",
-  description: "A mobile-first travel planning PWA for multi-city trips.",
-  manifest: "/manifest.json",
+  title: "中歐維維恩",
+  description: "TripPilot 中歐生日旅行計劃",
+  applicationName: "中歐維維恩",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
-    title: "TripPilot"
+    title: "中歐維維恩",
+    statusBarStyle: "default"
   },
   icons: {
-    icon: "/manifest.json",
-    apple: "/manifest.json"
+    icon: "/icon.png",
+    apple: "/apple-icon.png"
   }
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0891b2",
-  viewportFit: "cover",
+  themeColor: "#F7F1E7",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1
+  maximumScale: 1,
+  viewportFit: "cover"
 };
 
 export default function RootLayout({
   children
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en">
-      <body>
-        <ServiceWorkerRegister />
-        {children}
-      </body>
+    <html lang="zh-Hant">
+      <body>{children}</body>
     </html>
   );
 }
