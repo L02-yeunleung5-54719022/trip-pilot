@@ -429,7 +429,7 @@ export default function TripPilotApp() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#F7EFE5] via-[#EAF2F4] to-white pb-32 text-[#172033]">
-      <div className="mx-auto max-w-md px-4 pt-4">
+      <div className="mx-auto max-w-md px-4 pt-[calc(env(safe-area-inset-top)+1.25rem)]">
         {activeTab === "trip" && (
           <TripHome
             data={data}
@@ -1919,7 +1919,7 @@ function BottomNav({
   setActiveTab: (tab: MainTab) => void;
 }) {
   return (
-    <nav className="safe-bottom fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-md">
+    <nav className="fixed bottom-[calc(env(safe-area-inset-bottom)+1rem)] left-4 right-4 z-50 mx-auto max-w-md">
       <div className="grid grid-cols-5 gap-1 rounded-[2rem] border border-white/70 bg-white/85 p-2 shadow-2xl backdrop-blur-xl">
         {tabs.map(tab => {
           const active = tab.key === activeTab;
