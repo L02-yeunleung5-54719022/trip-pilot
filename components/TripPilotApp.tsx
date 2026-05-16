@@ -152,6 +152,19 @@ function getThemeByCity(city: string) {
   };
 }
 
+function getCitySummaryBackground(city: string) {
+  const c = city.toLowerCase();
+
+  if (c.includes("vienna")) return "/city-bg/vienna.png";
+  if (c.includes("prague")) return "/city-bg/prague.png";
+  if (c.includes("budapest")) return "/city-bg/budapest.png";
+  if (c.includes("bratislava")) return "/city-bg/bratislava.png";
+  if (c.includes("frankfurt")) return "/city-bg/frankfurt.png";
+  if (c.includes("vancouver")) return "/city-bg/vancouver.png";
+
+  return "/dashboard-bg.png";
+}
+
 function uid(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
@@ -822,9 +835,18 @@ function DailySummaryCard({
 }) {
   const progress = dayItems.length ? Math.round((completedCount / dayItems.length) * 100) : 0;
   const cityTheme = getThemeByCity(city);
+  const summaryBg = getCitySummaryBackground(city);
 
   return (
-    <section className="rounded-[2rem] border border-[#E8DED0] bg-[#FFFDF8] p-5 shadow-[0_12px_30px_rgba(24,59,99,0.08)]">
+    <section
+      className="relative overflow-hidden rounded-[2rem] border border-[#E8DED0] bg-[#FFFDF8] p-5 shadow-[0_12px_30px_rgba(24,59,99,0.08)]"
+      style={{
+        backgroundImage: `linear-gradient(180deg, rgba(255,253,248,0.95) 0%, rgba(255,253,248,0.84) 42%, rgba(255,253,248,0.97) 100%), url('${summaryBg}')`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat"
+      }}
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-bold" style={{ color: cityTheme.accent }}>
@@ -839,7 +861,6 @@ function DailySummaryCard({
         <WeatherMini city={weatherCity} date={selectedDate} />
       </div>
 
-      <CityIllustrationCard city={city} />
 
       <div className="mt-4 grid grid-cols-3 gap-2">
         <MiniInfo label="行程" value={`${dayItems.length} 個`} color={cityTheme.soft} />
