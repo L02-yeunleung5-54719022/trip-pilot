@@ -2,12 +2,13 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "中歐維維恩",
+  title: "中歐維恩",
   description: "TripPilot 中歐生日旅行計劃",
-  applicationName: "中歐維維恩",
+  applicationName: "中歐維恩",
+  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    title: "中歐維維恩",
+    title: "中歐維恩",
     statusBarStyle: "default"
   },
   icons: {
