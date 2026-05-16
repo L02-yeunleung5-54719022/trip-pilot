@@ -46,7 +46,7 @@ const tabs: { key: MainTab; label: string; icon: string }[] = [
   { key: "trip", label: "行程", icon: "🗓" },
   { key: "map", label: "地圖", icon: "🗺" },
   { key: "budget", label: "記帳", icon: "💳" },
-  { key: "shopping", label: "購物", icon: "🛍" },
+  { key: "shopping", label: "願望", icon: "⭐" },
   { key: "info", label: "資訊", icon: "ℹ️" }
 ];
 
@@ -251,6 +251,12 @@ function getCountdownText(item?: TimedItineraryItem) {
   if (diff < -30) return "已過時間";
   return `距離下一個行程 ${formatCountdown(Math.max(diff, 0))}`;
 }
+function getArrivalTimeFromNotes(item: TimedItineraryItem) {
+  const text = `${item.notes || ""} ${item.title || ""}`;
+  const match = text.match(/(?:→|->|到|抵達)\s*(\d{1,2}:\d{2})/);
+  return match?.[1] || "";
+}
+
 
 function getAccommodationCheckInTime() {
   return "15:00";
@@ -467,7 +473,9 @@ export default function TripPilotApp() {
   const [showAddItinerary, setShowAddItinerary] = useState(false);
   const [editingItem, setEditingItem] = useState<TimedItineraryItem | null>(null);
   const [showAddExpense, setShowAddExpense] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [showAddShopping, setShowAddShopping] = useState(false);
+  const [editingShopping, setEditingShopping] = useState<WishlistItem | null>(null);
   const [cloudStatus, setCloudStatus] = useState<CloudStatus>(syncEnabled ? "loading" : "off");
   const cloudReadyRef = useRef(false);
   const saveTimerRef = useRef<number | null>(null);
@@ -650,12 +658,15 @@ export default function TripPilotApp() {
           initialItem={editingItem}
           onClose={() => setEditingItem(null)}
           onSave={item => {
+            const exists = data.itinerary.some(existing => existing.id === item.id);
+
             update({
               ...data,
-              itinerary: data.itinerary.map(existing =>
-                existing.id === item.id ? item : existing
-              )
+              itinerary: exists
+                ? data.itinerary.map(existing => (existing.id === item.id ? item : existing))
+                : [...data.itinerary, item]
             });
+
             setEditingItem(null);
           }}
         />
@@ -663,6 +674,7 @@ export default function TripPilotApp() {
 
       {showAddExpense && (
         <AddExpenseModal
+          mode="add"
           data={data}
           onClose={() => setShowAddExpense(false)}
           onSave={expense => {
@@ -672,13 +684,50 @@ export default function TripPilotApp() {
         />
       )}
 
+      {editingExpense && (
+        <AddExpenseModal
+          mode="edit"
+          data={data}
+          initialExpense={editingExpense}
+          onClose={() => setEditingExpense(null)}
+          onSave={expense => {
+            update({
+              ...data,
+              expenses: data.expenses.map(existing =>
+                existing.id === expense.id ? expense : existing
+              )
+            });
+            setEditingExpense(null);
+          }}
+        />
+      )}
+
       {showAddShopping && (
         <AddShoppingModal
+          mode="add"
           data={data}
           onClose={() => setShowAddShopping(false)}
           onSave={item => {
             update({ ...data, wishlist: [...data.wishlist, item] });
             setShowAddShopping(false);
+          }}
+        />
+      )}
+
+      {editingShopping && (
+        <AddShoppingModal
+          mode="edit"
+          data={data}
+          initialItem={editingShopping}
+          onClose={() => setEditingShopping(null)}
+          onSave={item => {
+            update({
+              ...data,
+              wishlist: data.wishlist.map(existing =>
+                existing.id === item.id ? item : existing
+              )
+            });
+            setEditingShopping(null);
           }}
         />
       )}
@@ -1600,6 +1649,15 @@ function AccommodationStayCard({
         </div>
       )}
 
+      {isAuto && (
+        <button
+          onClick={onEdit}
+          className="mt-4 w-full rounded-2xl bg-[#183B63] px-4 py-3 text-sm font-black text-white"
+        >
+          編輯住宿卡
+        </button>
+      )}
+
       <TimelineActions
         item={item}
         isAuto={isAuto}
@@ -1640,6 +1698,7 @@ function TransportTicketCard({
   onMoveDown: () => void;
 }) {
   const itemTime = getItemTime(item);
+  const arrivalTime = getArrivalTimeFromNotes(item);
   const cityParts = item.city
     ? item.city.split("/").map(part => part.trim()).filter(Boolean)
     : [];
@@ -1696,6 +1755,7 @@ function TransportTicketCard({
           <p className="text-xs font-bold tracking-[0.3em] text-white/70">TO</p>
           <p className="mt-1 text-4xl font-black tracking-[0.18em]">{toCode}</p>
           <p className="mt-1 truncate text-sm text-white/80">{toCity}</p>
+          {arrivalTime && <p className="mt-1 text-sm font-black text-white/90">{arrivalTime}</p>}
         </div>
       </div>
 
@@ -1709,7 +1769,9 @@ function TransportTicketCard({
           </div>
           <div className="rounded-2xl bg-white/10 p-3">
             <p className="font-bold text-white/60">到達</p>
-            <p className="mt-1 font-black text-white">{toCity}</p>
+            <p className="mt-1 font-black text-white">
+              {toCity}{arrivalTime ? ` · ${arrivalTime}` : ""}
+            </p>
           </div>
           <div className="rounded-2xl bg-white/10 p-3">
             <p className="font-bold text-white/60">狀態</p>
@@ -2000,11 +2062,13 @@ function PlaceCard({
 function BudgetPage({
   data,
   update,
-  onAdd
+  onAdd,
+  onEdit
 }: {
   data: TripDataV2;
   update: (d: TripDataV2) => void;
   onAdd: () => void;
+  onEdit: (expense: Expense) => void;
 }) {
   const totalHKD = data.expenses.reduce((sum, x) => sum + toHKD(x.amount, x.currency), 0);
   const accommodationHKD = data.expenses
@@ -2089,7 +2153,10 @@ function BudgetPage({
                 </div>
 
                 <div className="text-right">
-                  <button onClick={() => deleteExpense(expense.id)} className="text-xs font-bold text-rose-500">
+                  <button onClick={() => onEdit(expense)} className="text-xs font-bold text-[#183B63]">
+                    編輯
+                  </button>
+                  <button onClick={() => deleteExpense(expense.id)} className="mt-2 block text-xs font-bold text-rose-500">
                     刪除
                   </button>
                 </div>
@@ -2114,14 +2181,47 @@ function BudgetMini({ label, value }: { label: string; value: string }) {
 function ShoppingPage({
   data,
   update,
-  onAdd
+  onAdd,
+  onEdit
 }: {
   data: TripDataV2;
   update: (d: TripDataV2) => void;
   onAdd: () => void;
+  onEdit: (item: WishlistItem) => void;
 }) {
+  const dates = useMemo(() => getDates(data.trip.startDate, data.trip.endDate), [data.trip.startDate, data.trip.endDate]);
+
   function deleteItem(id: string) {
     update({ ...data, wishlist: data.wishlist.filter(item => item.id !== id) });
+  }
+
+  function addWishlistToItinerary(item: WishlistItem, date: string) {
+    const title = item.placeName || "願望項目";
+    const nextItem: TimedItineraryItem = {
+      id: uid("wish-itin"),
+      title,
+      city: item.city || euroCity(date, data),
+      date,
+      time: "10:00",
+      order: Date.now(),
+      timeBlock: "Morning",
+      address: item.address || "",
+      notes: `${item.category || "願望"}｜${item.notes || ""}`,
+      estimatedCost: item.estimatedCost || 0,
+      currency: item.currency || data.trip.mainCurrency,
+      googleMapsLink: item.googleMapsLink || "",
+      completed: false
+    };
+
+    update({
+      ...data,
+      itinerary: [...data.itinerary, nextItem],
+      wishlist: data.wishlist.map(existing =>
+        existing.id === item.id ? { ...existing, completed: true } : existing
+      )
+    });
+
+    alert("已加入行程。");
   }
 
   return (
@@ -2129,10 +2229,10 @@ function ShoppingPage({
       <section className="rounded-[2.25rem] bg-gradient-to-br from-[#C86A45] to-[#183B63] p-6 text-white shadow-[0_12px_30px_rgba(24,59,99,0.18)]">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-bold text-white/70">Shopping List</p>
-            <h2 className="mt-1 text-3xl font-black">旅行購物清單</h2>
+            <p className="text-sm font-bold text-white/70">Wish List</p>
+            <h2 className="mt-1 text-3xl font-black">願望清單</h2>
             <p className="mt-2 text-sm text-white/70">
-              想買、手信、門票、重要準備都可以放在這裡。
+              想去的景點、餐廳、活動同購物點都可以放在這裡，再一鍵加入行程。
             </p>
           </div>
 
@@ -2144,23 +2244,44 @@ function ShoppingPage({
 
       <div className="grid gap-4">
         {data.wishlist.length === 0 && (
-          <EmptyCard icon="🛍" title="未有購物清單" text="新增你想買的手信、用品或門票。" />
+          <EmptyCard icon="⭐" title="未有願望清單" text="新增想去的景點、餐廳、活動或購物點。" />
         )}
 
         {data.wishlist.map(item => (
-          <ShoppingCard key={item.id} item={item} onDelete={() => deleteItem(item.id)} />
+          <ShoppingCard
+            key={item.id}
+            item={item}
+            dates={dates}
+            onDelete={() => deleteItem(item.id)}
+            onEdit={() => onEdit(item)}
+            onAddToItinerary={date => addWishlistToItinerary(item, date)}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-function ShoppingCard({ item, onDelete }: { item: WishlistItem; onDelete: () => void }) {
+function ShoppingCard({
+  item,
+  dates,
+  onDelete,
+  onEdit,
+  onAddToItinerary
+}: {
+  item: WishlistItem;
+  dates: string[];
+  onDelete: () => void;
+  onEdit: () => void;
+  onAddToItinerary: (date: string) => void;
+}) {
+  const [targetDate, setTargetDate] = useState(dates[0] || "");
+
   return (
     <article className="rounded-[2rem] border border-[#E8DED0] bg-[#FFFDF8] p-5 shadow-[0_12px_30px_rgba(24,59,99,0.08)]">
       <div className="flex gap-4">
         <div className="grid h-16 w-16 shrink-0 place-items-center rounded-3xl bg-[#F4EEE4] text-3xl">
-          🛍
+          {item.category === "Restaurant" ? "🍽" : item.category === "Attraction" ? "📍" : item.category === "Activity" ? "🎟" : "⭐"}
         </div>
 
         <div className="min-w-0 flex-1">
@@ -2172,9 +2293,14 @@ function ShoppingCard({ item, onDelete }: { item: WishlistItem; onDelete: () => 
               <h3 className="mt-1 text-xl font-black text-[#183B63]">{item.placeName}</h3>
             </div>
 
-            <button onClick={onDelete} className="text-sm font-bold text-rose-500">
-              刪除
-            </button>
+            <div className="text-right">
+              <button onClick={onEdit} className="text-sm font-bold text-[#183B63]">
+                編輯
+              </button>
+              <button onClick={onDelete} className="mt-2 block text-sm font-bold text-rose-500">
+                刪除
+              </button>
+            </div>
           </div>
 
           <p className="mt-2 text-sm text-[#6D7B8A]">{item.notes || item.address}</p>
@@ -2186,6 +2312,55 @@ function ShoppingCard({ item, onDelete }: { item: WishlistItem; onDelete: () => 
             <span className="rounded-full bg-[#EEF5EA] px-3 py-1 text-xs font-black text-[#183B63]">
               {item.category}
             </span>
+            {item.completed && (
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+                已加入行程
+              </span>
+            )}
+          </div>
+
+          <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
+            <select
+              value={targetDate}
+              onChange={event => setTargetDate(event.target.value)}
+              className="rounded-2xl border border-[#E8DED0] bg-[#FAF6EF] px-3 py-2 text-xs font-black text-[#183B63]"
+            >
+              {dates.map(date => (
+                <option key={date} value={date}>
+                  {dateLabel(date)}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={() => onAddToItinerary(targetDate)}
+              className="rounded-2xl bg-[#183B63] px-3 py-2 text-xs font-black text-white"
+            >
+              加入行程
+            </button>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {item.googleMapsLink && (
+              <a
+                href={item.googleMapsLink}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-full bg-[#183B63] px-3 py-2 text-xs font-black text-white"
+              >
+                導航
+              </a>
+            )}
+            {item.address && (
+              <a
+                href={item.googleMapsLink || makeMapsSearchLink(item.address)}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-full bg-[#FAF6EF] px-3 py-2 text-xs font-black text-[#183B63]"
+              >
+                開地圖
+              </a>
+            )}
           </div>
         </div>
       </div>
@@ -2555,7 +2730,7 @@ function ItineraryModal({
     if (!title.trim()) return;
 
     onSave({
-      id: initialItem?.id || uid("itin"),
+      id: initialItem && !initialItem.id.startsWith("auto-") ? initialItem.id : uid("itin"),
       title,
       city,
       date,
@@ -2612,27 +2787,31 @@ function ItineraryModal({
 }
 
 function AddExpenseModal({
+  mode = "add",
   data,
+  initialExpense,
   onClose,
   onSave
 }: {
+  mode?: "add" | "edit";
   data: TripDataV2;
+  initialExpense?: Expense;
   onClose: () => void;
   onSave: (expense: Expense) => void;
 }) {
-  const [title, setTitle] = useState("");
-  const [date, setDate] = useState(data.trip.startDate);
-  const [category, setCategory] = useState<ExpenseCategory>("Food");
-  const [amount, setAmount] = useState("0");
-  const [currency, setCurrency] = useState("EUR");
-  const [paidBy, setPaidBy] = useState(data.trip.travelers[0] || "Chris");
-  const [notes, setNotes] = useState("");
+  const [title, setTitle] = useState(initialExpense?.title || "");
+  const [date, setDate] = useState(initialExpense?.date || data.trip.startDate);
+  const [category, setCategory] = useState<ExpenseCategory>(initialExpense?.category || "Food");
+  const [amount, setAmount] = useState(String(initialExpense?.amount ?? 0));
+  const [currency, setCurrency] = useState(initialExpense?.currency || "EUR");
+  const [paidBy, setPaidBy] = useState(initialExpense?.paidBy || data.trip.travelers[0] || "Chris");
+  const [notes, setNotes] = useState(initialExpense?.notes || "");
 
   function submit() {
     if (!title.trim()) return;
 
     onSave({
-      id: uid("exp"),
+      id: initialExpense?.id || uid("exp"),
       title,
       date,
       category,
@@ -2644,7 +2823,7 @@ function AddExpenseModal({
   }
 
   return (
-    <Modal title="新增支出" onClose={onClose}>
+    <Modal title={mode === "add" ? "新增支出" : "編輯支出"} onClose={onClose}>
       <Field label="名稱" value={title} setValue={setTitle} />
       <Field label="日期" type="date" value={date} setValue={setDate} />
 
@@ -2667,57 +2846,103 @@ function AddExpenseModal({
 
       <Field label="付款人" value={paidBy} setValue={setPaidBy} />
       <TextArea label="備註" value={notes} setValue={setNotes} />
-      <PrimaryButton onClick={submit}>儲存支出</PrimaryButton>
+      <PrimaryButton onClick={submit}>{mode === "add" ? "儲存支出" : "儲存修改"}</PrimaryButton>
     </Modal>
   );
 }
 
 function AddShoppingModal({
+  mode = "add",
   data,
+  initialItem,
   onClose,
   onSave
 }: {
+  mode?: "add" | "edit";
   data: TripDataV2;
+  initialItem?: WishlistItem;
   onClose: () => void;
   onSave: (item: WishlistItem) => void;
 }) {
-  const [placeName, setPlaceName] = useState("");
-  const [city, setCity] = useState("Vienna");
-  const [estimatedCost, setEstimatedCost] = useState("0");
-  const [currency, setCurrency] = useState("EUR");
-  const [notes, setNotes] = useState("");
+  const [placeName, setPlaceName] = useState(initialItem?.placeName || "");
+  const [city, setCity] = useState(initialItem?.city || "Vienna");
+  const [category, setCategory] = useState(initialItem?.category || "Attraction");
+  const [priority, setPriority] = useState(initialItem?.priority || "Nice to Go");
+  const [address, setAddress] = useState(initialItem?.address || "");
+  const [googleMapsLink, setGoogleMapsLink] = useState(initialItem?.googleMapsLink || "");
+  const [estimatedCost, setEstimatedCost] = useState(String(initialItem?.estimatedCost ?? 0));
+  const [currency, setCurrency] = useState(initialItem?.currency || "EUR");
+  const [estimatedDuration, setEstimatedDuration] = useState(initialItem?.estimatedDuration || "");
+  const [notes, setNotes] = useState(initialItem?.notes || "");
 
   function submit() {
     if (!placeName.trim()) return;
 
     onSave({
-      id: uid("wish"),
+      id: initialItem?.id || uid("wish"),
       placeName,
       city,
-      category: "Shopping",
-      priority: "Nice to Go",
-      address: "",
+      category: category as WishlistItem["category"],
+      priority: priority as WishlistItem["priority"],
+      address,
       estimatedCost: Number(estimatedCost || 0),
       currency,
-      estimatedDuration: "",
+      estimatedDuration,
       notes,
-      googleMapsLink: ""
+      googleMapsLink,
+      completed: initialItem?.completed || false
     });
   }
 
   return (
-    <Modal title="新增購物項目" onClose={onClose}>
+    <Modal title={mode === "add" ? "新增願望" : "編輯願望"} onClose={onClose}>
       <Field label="名稱" value={placeName} setValue={setPlaceName} />
       <Field label="城市" value={city} setValue={setCity} />
+
+      <Select
+        label="類型"
+        value={category}
+        options={["Attraction", "Restaurant", "Activity", "Cafe", "Bar", "Museum", "Shopping", "Photo Spot", "Other"]}
+        labels={{
+          Attraction: "景點",
+          Restaurant: "餐廳",
+          Activity: "活動",
+          Cafe: "咖啡店",
+          Bar: "酒吧",
+          Museum: "博物館",
+          Shopping: "購物",
+          "Photo Spot": "拍照點",
+          Other: "其他"
+        }}
+        setValue={setCategory}
+      />
+
+      <Select
+        label="優先度"
+        value={priority}
+        options={["Must Go", "Nice to Go", "Backup"]}
+        labels={{
+          "Must Go": "必去",
+          "Nice to Go": "想去",
+          Backup: "後備"
+        }}
+        setValue={setPriority}
+      />
+
+      <Field label="地址" value={address} setValue={setAddress} />
+      <Field label="Google Maps 連結" value={googleMapsLink} setValue={setGoogleMapsLink} />
       <Field label="預算" type="number" value={estimatedCost} setValue={setEstimatedCost} />
+
       <Select
         label="幣別"
         value={currency}
         options={["EUR", "HKD", "CAD", "CZK", "HUF", "USD"]}
         setValue={setCurrency}
       />
+
+      <Field label="預計停留時間" value={estimatedDuration} setValue={setEstimatedDuration} />
       <TextArea label="備註" value={notes} setValue={setNotes} />
-      <PrimaryButton onClick={submit}>儲存項目</PrimaryButton>
+      <PrimaryButton onClick={submit}>{mode === "add" ? "儲存願望" : "儲存修改"}</PrimaryButton>
     </Modal>
   );
 }
