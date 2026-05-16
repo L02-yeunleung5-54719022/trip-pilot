@@ -497,16 +497,16 @@ function TripHero({ data }: { data: TripDataV2 }) {
   const completedChecklist = checklist.filter(item => item.completed).length;
 
   return (
-    <section className="relative overflow-hidden rounded-[2.25rem] border border-[#E8DED0] bg-[#FFFDF8] p-5 text-[#1<section
-  className="relative overflow-hidden rounded-[2.25rem] border border-[#E8DED0] bg-[#FFFDF8] p-5 text-[#183B63] shadow-[0_12px_30px_rgba(24,59,99,0.08)]"
-  style={{
-    backgroundImage:
-      "linear-gradient(180deg, rgba(255,253,248,0.92) 0%, rgba(255,253,248,0.78) 42%, rgba(255,253,248,0.95) 100%), url('/dashboard-bg.png')",
-    backgroundSize: "cover",
-    backgroundPosition: "center bottom",
-    backgroundRepeat: "no-repeat"
-  }}
->83B63] shadow-[0_12px_30px_rgba(24,59,99,0.08)]">
+    <section
+      className="relative overflow-hidden rounded-[2.25rem] border border-[#E8DED0] bg-[#FFFDF8] p-5 text-[#183B63] shadow-[0_12px_30px_rgba(24,59,99,0.08)]"
+      style={{
+        backgroundImage:
+          "linear-gradient(180deg, rgba(255,253,248,0.94) 0%, rgba(255,253,248,0.82) 42%, rgba(255,253,248,0.96) 100%), url('/dashboard-bg.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center bottom",
+        backgroundRepeat: "no-repeat"
+      }}
+    >
       <div className="absolute -right-12 -top-10 h-36 w-36 rounded-full bg-[#D39232]/15" />
       <div className="absolute -bottom-14 left-8 h-36 w-36 rounded-full bg-[#7A9A6D]/12" />
 
@@ -529,6 +529,7 @@ function TripHero({ data }: { data: TripDataV2 }) {
         </p>
 
         <p className="mt-2 text-sm leading-relaxed text-[#4F5F70]">{data.trip.route}</p>
+
 
         <div className="mt-4 grid grid-cols-3 gap-3">
           <HeroStat label="天數" value={`${days}`} />
