@@ -760,21 +760,81 @@ function TripHome({
     });
   }
 
-  return (
-    <div className="space-y-5">
+return (
+  <div className="space-y-5">
+    {isPreTrip ? (
       <TripHero data={data} />
-
-      <DaySelector
-        dates={dates}
+    ) : (
+      <DailySummaryCard
+        data={data}
         selectedDate={selectedDate}
-        setSelectedDate={setSelectedDate}
+        city={city}
+        weatherCity={weatherCity}
+        dayItems={dayItems}
+        completedCount={completedCount}
+        nextItem={nextItem}
       />
+    )}
 
-      {isPreTrip ? (
-        <ChecklistPanel data={data} update={update} />
-      ) : (
-        <>
-          <DailySummaryCard
+    <DaySelector
+      dates={dates}
+      selectedDate={selectedDate}
+      setSelectedDate={setSelectedDate}
+    />
+
+    {isPreTrip ? (
+      <ChecklistPanel data={data} update={update} />
+    ) : (
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-bold text-[#B85C38]">Timeline</p>
+            <h2 className="text-2xl font-black text-[#12355B]">今日行程</h2>
+          </div>
+
+          <button
+            onClick={onAdd}
+            className="rounded-full bg-[#B85C38] px-4 py-3 text-sm font-black text-white shadow-lg"
+          >
+            ＋新增
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {dayItems.length === 0 && (
+            <EmptyCard
+              icon="🗓"
+              title="今日未有行程"
+              text="可以加入景點、交通、餐廳或住宿安排。"
+            />
+          )}
+
+          {dayItems.map(item => {
+            const isAuto = item.id.startsWith("auto-");
+            const moveIndex = nonAutoDayItems.findIndex(movable => movable.id === item.id);
+
+            return (
+              <TimelineCard
+                key={item.id}
+                item={item}
+                isAuto={isAuto}
+                canMoveUp={!isAuto && moveIndex > 0}
+                canMoveDown={
+                  !isAuto && moveIndex >= 0 && moveIndex < nonAutoDayItems.length - 1
+                }
+                onToggle={() => toggleComplete(item.id)}
+                onDelete={() => deleteItem(item.id)}
+                onEdit={() => onEdit(item)}
+                onMoveUp={() => moveItem(item.id, "up")}
+                onMoveDown={() => moveItem(item.id, "down")}
+              />
+            );
+          })}
+        </div>
+      </section>
+    )}
+  </div>
+);
             data={data}
             selectedDate={selectedDate}
             city={city}
