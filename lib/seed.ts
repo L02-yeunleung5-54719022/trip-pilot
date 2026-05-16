@@ -193,7 +193,67 @@ export const seedData = {
       cost: 0,
       currency: "HKD",
       confirmed: true,
-      notes: "回程最後一段｜抵達溫哥華機場"
+      notes: "回程最後一段｜抵達溫哥華機場"    },
+    {
+      id: "transport-gf-hkg-doh-qr817",
+      transportType: "Flight",
+      date: "2026-05-18",
+      fromCity: "Hong Kong",
+      toCity: "Doha",
+      departureStation: "HKG 香港國際機場",
+      arrivalStation: "DOH 哈馬德國際機場",
+      departureTime: "18:15",
+      arrivalTime: "22:15",
+      cost: 0,
+      currency: "HKD",
+      confirmed: true,
+      notes: "女朋友航班｜Qatar Airways QR817｜Boeing 777-300ER｜飛行時間 9小時｜Doha 轉機 3小時55分"
+    },
+    {
+      id: "transport-gf-doh-vie-qr189",
+      transportType: "Flight",
+      date: "2026-05-19",
+      fromCity: "Doha",
+      toCity: "Vienna",
+      departureStation: "DOH 哈馬德國際機場",
+      arrivalStation: "VIE 維也納國際機場",
+      departureTime: "02:10",
+      arrivalTime: "08:00",
+      cost: 0,
+      currency: "HKD",
+      confirmed: true,
+      notes: "女朋友航班｜Qatar Airways QR189｜Boeing 787-8｜飛行時間 6小時50分｜抵達 Vienna"
+    },
+    {
+      id: "transport-gf-vie-doh-qr184",
+      transportType: "Flight",
+      date: "2026-05-31",
+      fromCity: "Vienna",
+      toCity: "Doha",
+      departureStation: "VIE 維也納國際機場",
+      arrivalStation: "DOH 哈馬德國際機場",
+      departureTime: "16:05",
+      arrivalTime: "22:50",
+      cost: 0,
+      currency: "HKD",
+      confirmed: true,
+      notes: "女朋友回程航班｜Qatar Airways QR184｜Boeing 787-8｜飛行時間 5小時45分｜Doha 轉機 4小時15分"
+    },
+    {
+      id: "transport-gf-doh-hkg-qr818",
+      transportType: "Flight",
+      date: "2026-06-01",
+      fromCity: "Doha",
+      toCity: "Hong Kong",
+      departureStation: "DOH 哈馬德國際機場",
+      arrivalStation: "HKG 香港國際機場",
+      departureTime: "03:05",
+      arrivalTime: "16:25",
+      cost: 0,
+      currency: "HKD",
+      confirmed: true,
+      notes: "女朋友回程航班｜Qatar Airways QR818｜Airbus A350-1000｜飛行時間 8小時20分｜抵達 Hong Kong"
+
     }
   ],
 
@@ -331,7 +391,67 @@ export const seedData = {
       estimatedCost: 0,
       currency: "HKD",
       googleMapsLink: "https://www.google.com/maps/search/?api=1&query=Frankfurt%20Airport",
+      completed: false    },
+    {
+      id: "it-gf-20260518-hkg-doh",
+      title: "女朋友航班：HKG 香港 → DOH 多哈",
+      city: "Hong Kong / Doha",
+      date: "2026-05-18",
+      time: "18:15",
+      order: 2,
+      timeBlock: "Evening",
+      address: "Hong Kong International Airport, Hong Kong",
+      notes: "Qatar Airways QR817｜18:15 → 22:15｜飛行時間 9小時｜Doha 轉機 3小時55分",
+      estimatedCost: 0,
+      currency: "HKD",
+      googleMapsLink: "https://www.google.com/maps/search/?api=1&query=Hong%20Kong%20International%20Airport",
       completed: false
+    },
+    {
+      id: "it-gf-20260519-doh-vie",
+      title: "女朋友航班：DOH 多哈 → VIE 維也納",
+      city: "Doha / Vienna",
+      date: "2026-05-19",
+      time: "02:10",
+      order: 0,
+      timeBlock: "Morning",
+      address: "Hamad International Airport, Doha, Qatar",
+      notes: "Qatar Airways QR189｜02:10 → 08:00｜飛行時間 6小時50分｜抵達 Vienna",
+      estimatedCost: 0,
+      currency: "HKD",
+      googleMapsLink: "https://www.google.com/maps/search/?api=1&query=Hamad%20International%20Airport%20Doha",
+      completed: false
+    },
+    {
+      id: "it-gf-20260531-vie-doh",
+      title: "女朋友回程航班：VIE 維也納 → DOH 多哈",
+      city: "Vienna / Doha",
+      date: "2026-05-31",
+      time: "16:05",
+      order: 0,
+      timeBlock: "Afternoon",
+      address: "Vienna International Airport, 1300 Schwechat, Austria",
+      notes: "Qatar Airways QR184｜16:05 → 22:50｜飛行時間 5小時45分｜Doha 轉機 4小時15分",
+      estimatedCost: 0,
+      currency: "HKD",
+      googleMapsLink: "https://www.google.com/maps/search/?api=1&query=Vienna%20International%20Airport",
+      completed: false
+    },
+    {
+      id: "it-gf-20260601-doh-hkg",
+      title: "女朋友回程航班：DOH 多哈 → HKG 香港",
+      city: "Doha / Hong Kong",
+      date: "2026-06-01",
+      time: "03:05",
+      order: 0,
+      timeBlock: "Morning",
+      address: "Hamad International Airport, Doha, Qatar",
+      notes: "Qatar Airways QR818｜03:05 → 16:25｜飛行時間 8小時20分｜抵達 Hong Kong",
+      estimatedCost: 0,
+      currency: "HKD",
+      googleMapsLink: "https://www.google.com/maps/search/?api=1&query=Hamad%20International%20Airport%20Doha",
+      completed: false
+
     }
   ],
 
@@ -488,7 +608,43 @@ export const seedData = {
       date: "2026-05-23",
       relatedCity: "Vienna / Prague / Budapest / Bratislava",
       link: "",
-      notes: "Vienna→Prague、Prague→Budapest、Budapest→Bratislava、Bratislava→Vienna"
+      notes: "Vienna→Prague、Prague→Budapest、Budapest→Bratislava、Bratislava→Vienna"    },
+    {
+      id: "doc-gf-flight-hkg-doh",
+      title: "女朋友 Qatar QR817 HKG → DOH",
+      documentType: "Flight Ticket",
+      date: "2026-05-18",
+      relatedCity: "Hong Kong / Doha",
+      link: "",
+      notes: "18:15 → 22:15｜Boeing 777-300ER｜Doha 轉機 3小時55分"
+    },
+    {
+      id: "doc-gf-flight-doh-vie",
+      title: "女朋友 Qatar QR189 DOH → VIE",
+      documentType: "Flight Ticket",
+      date: "2026-05-19",
+      relatedCity: "Doha / Vienna",
+      link: "",
+      notes: "02:10 → 08:00｜Boeing 787-8"
+    },
+    {
+      id: "doc-gf-flight-vie-doh",
+      title: "女朋友 Qatar QR184 VIE → DOH",
+      documentType: "Flight Ticket",
+      date: "2026-05-31",
+      relatedCity: "Vienna / Doha",
+      link: "",
+      notes: "16:05 → 22:50｜Doha 轉機 4小時15分"
+    },
+    {
+      id: "doc-gf-flight-doh-hkg",
+      title: "女朋友 Qatar QR818 DOH → HKG",
+      documentType: "Flight Ticket",
+      date: "2026-06-01",
+      relatedCity: "Doha / Hong Kong",
+      link: "",
+      notes: "03:05 → 16:25｜Airbus A350-1000"
+
     }
   ],
 
