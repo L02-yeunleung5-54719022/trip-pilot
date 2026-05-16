@@ -13,6 +13,7 @@ import type {
 } from "@/lib/types";
 
 type MainTab = "trip" | "map" | "budget" | "shopping" | "info";
+type TimedItineraryItem = ItineraryItem & { time?: string };
 
 type WeatherState = {
   loading: boolean;
@@ -38,6 +39,25 @@ const timeBlockLabel: Record<TimeBlock, string> = {
   Afternoon: "下午",
   Evening: "晚上"
 };
+
+function fallbackTimeFromBlock(block: TimeBlock) {
+  if (block === "Morning") return "09:00";
+  if (block === "Afternoon") return "14:00";
+  return "19:00";
+}
+
+function timeBlockFromTime(time: string): TimeBlock {
+  const hour = Number(time.split(":")[0]);
+
+  if (Number.isNaN(hour)) return "Morning";
+  if (hour < 12) return "Morning";
+  if (hour < 18) return "Afternoon";
+  return "Evening";
+}
+
+function getItemTime(item: TimedItineraryItem) {
+  return item.time || fallbackTimeFromBlock(item.timeBlock);
+}
 
 const expenseCategories: ExpenseCategory[] = [
   "Accommodation",
@@ -168,6 +188,18 @@ function getItemIcon(title: string, notes = "") {
   }
 
   if (
+    text.includes("breakfast") ||
+    text.includes("lunch") ||
+    text.includes("dinner") ||
+    text.includes("food") ||
+    text.includes("食") ||
+    text.includes("餐") ||
+    text.includes("咖啡")
+  ) {
+    return "🍽";
+  }
+
+  if (
     text.includes("bath") ||
     text.includes("museum") ||
     text.includes("old town") ||
@@ -175,17 +207,6 @@ function getItemIcon(title: string, notes = "") {
     text.includes("景點")
   ) {
     return "🏰";
-  }
-
-  if (
-    text.includes("dinner") ||
-    text.includes("lunch") ||
-    text.includes("food") ||
-    text.includes("晚餐") ||
-    text.includes("午餐") ||
-    text.includes("餐")
-  ) {
-    return "🍽";
   }
 
   if (text.includes("shopping") || text.includes("購物")) {
@@ -224,12 +245,20 @@ function primaryCity(cityText: string) {
   return "Vienna";
 }
 
+function sortItineraryItems(items: TimedItineraryItem[]) {
+  return [...items].sort((a, b) => {
+    const timeDiff = getItemTime(a).localeCompare(getItemTime(b));
+    if (timeDiff !== 0) return timeDiff;
+    return a.title.localeCompare(b.title);
+  });
+}
+
 export default function TripPilotApp() {
   const [data, setData] = useState<TripData | null>(null);
   const [activeTab, setActiveTab] = useState<MainTab>("trip");
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [showAddItinerary, setShowAddItinerary] = useState(false);
-  const [editingItem, setEditingItem] = useState<ItineraryItem | null>(null);
+  const [editingItem, setEditingItem] = useState<TimedItineraryItem | null>(null);
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showAddShopping, setShowAddShopping] = useState(false);
 
@@ -380,9 +409,7 @@ function TripHero({ data }: { data: TripData }) {
         <div className="mb-8 flex items-start justify-between">
           <div>
             <p className="text-sm font-semibold text-white/70">Central Europe</p>
-            <h2 className="mt-1 text-3xl font-black leading-tight">
-              {data.trip.name}
-            </h2>
+            <h2 className="mt-1 text-3xl font-black leading-tight">{data.trip.name}</h2>
           </div>
 
           <div className="rounded-2xl bg-white/15 px-3 py-2 text-sm font-bold backdrop-blur">
@@ -433,14 +460,16 @@ function TripHome({
   selectedDate: string;
   setSelectedDate: (d: string) => void;
   onAdd: () => void;
-  onEdit: (item: ItineraryItem) => void;
+  onEdit: (item: TimedItineraryItem) => void;
 }) {
   const dates = useMemo(() => getDates(data.trip.startDate, data.trip.endDate), [data]);
 
-  const itineraryItems = data.itinerary.filter(item => item.date === selectedDate);
+  const itineraryItems = (data.itinerary as TimedItineraryItem[]).filter(
+    item => item.date === selectedDate
+  );
 
-  const stayItems: ItineraryItem[] = data.accommodations.flatMap(stay => {
-    const items: ItineraryItem[] = [];
+  const stayItems: TimedItineraryItem[] = data.accommodations.flatMap(stay => {
+    const items: TimedItineraryItem[] = [];
 
     const alreadyHasCheckIn = data.itinerary.some(
       item =>
@@ -462,6 +491,7 @@ function TripHome({
         title: `退房：${stay.name}`,
         city: stay.city,
         date: stay.checkOutDate,
+        time: "10:00",
         timeBlock: "Morning",
         address: stay.address,
         notes: `${stay.city} 住宿退房｜${stay.checkInDate} → ${stay.checkOutDate}`,
@@ -480,6 +510,7 @@ function TripHome({
         title: `入住：${stay.name}`,
         city: stay.city,
         date: stay.checkInDate,
+        time: "18:00",
         timeBlock: "Evening",
         address: stay.address,
         notes: `${stay.city} 住宿入住｜${stay.checkInDate} → ${stay.checkOutDate}｜${money(
@@ -498,19 +529,7 @@ function TripHome({
     return items;
   });
 
-  const dayItems = [...itineraryItems, ...stayItems].sort((a, b) => {
-    const blockDiff = timeBlocks.indexOf(a.timeBlock) - timeBlocks.indexOf(b.timeBlock);
-    if (blockDiff !== 0) return blockDiff;
-
-    const aIndex = data.itinerary.findIndex(item => item.id === a.id);
-    const bIndex = data.itinerary.findIndex(item => item.id === b.id);
-
-    if (aIndex === -1 && bIndex === -1) return a.title.localeCompare(b.title);
-    if (aIndex === -1) return 1;
-    if (bIndex === -1) return -1;
-
-    return aIndex - bIndex;
-  });
+  const dayItems = sortItineraryItems([...itineraryItems, ...stayItems]);
 
   const city = euroCity(selectedDate, data);
   const weatherCity = primaryCity(city);
@@ -538,30 +557,49 @@ function TripHome({
   function moveItem(id: string, direction: "up" | "down") {
     if (id.startsWith("auto-")) return;
 
-    const sameDateIds = data.itinerary
-      .filter(item => item.date === selectedDate)
-      .map(item => item.id);
+    const movableItems = sortItineraryItems(
+      (data.itinerary as TimedItineraryItem[]).filter(item => item.date === selectedDate)
+    );
 
-    const currentPosition = sameDateIds.indexOf(id);
-    if (currentPosition === -1) return;
+    const currentIndex = movableItems.findIndex(item => item.id === id);
+    if (currentIndex === -1) return;
 
-    const targetPosition = direction === "up" ? currentPosition - 1 : currentPosition + 1;
-    if (targetPosition < 0 || targetPosition >= sameDateIds.length) return;
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= movableItems.length) return;
 
-    const targetId = sameDateIds[targetPosition];
+    const currentItem = movableItems[currentIndex];
+    const targetItem = movableItems[targetIndex];
 
-    const next = [...data.itinerary];
-    const globalA = next.findIndex(item => item.id === id);
-    const globalB = next.findIndex(item => item.id === targetId);
+    const currentTime = getItemTime(currentItem);
+    const targetTime = getItemTime(targetItem);
 
-    if (globalA === -1 || globalB === -1) return;
+    update({
+      ...data,
+      itinerary: data.itinerary.map(item => {
+        if (item.id === currentItem.id) {
+          return {
+            ...item,
+            time: targetTime,
+            timeBlock: timeBlockFromTime(targetTime)
+          };
+        }
 
-    const temp = next[globalA];
-    next[globalA] = next[globalB];
-    next[globalB] = temp;
+        if (item.id === targetItem.id) {
+          return {
+            ...item,
+            time: currentTime,
+            timeBlock: timeBlockFromTime(currentTime)
+          };
+        }
 
-    update({ ...data, itinerary: next });
+        return item;
+      })
+    });
   }
+
+  const movableItems = sortItineraryItems(
+    (data.itinerary as TimedItineraryItem[]).filter(item => item.date === selectedDate)
+  );
 
   return (
     <div className="space-y-5">
@@ -614,20 +652,25 @@ function TripHome({
             />
           )}
 
-          {dayItems.map((item, index) => (
-            <TimelineCard
-              key={item.id}
-              item={item}
-              isAuto={item.id.startsWith("auto-")}
-              canMoveUp={index > 0 && !item.id.startsWith("auto-")}
-              canMoveDown={index < dayItems.length - 1 && !item.id.startsWith("auto-")}
-              onToggle={() => toggleComplete(item.id)}
-              onDelete={() => deleteItem(item.id)}
-              onEdit={() => onEdit(item)}
-              onMoveUp={() => moveItem(item.id, "up")}
-              onMoveDown={() => moveItem(item.id, "down")}
-            />
-          ))}
+          {dayItems.map(item => {
+            const isAuto = item.id.startsWith("auto-");
+            const moveIndex = movableItems.findIndex(movable => movable.id === item.id);
+
+            return (
+              <TimelineCard
+                key={item.id}
+                item={item}
+                isAuto={isAuto}
+                canMoveUp={!isAuto && moveIndex > 0}
+                canMoveDown={!isAuto && moveIndex >= 0 && moveIndex < movableItems.length - 1}
+                onToggle={() => toggleComplete(item.id)}
+                onDelete={() => deleteItem(item.id)}
+                onEdit={() => onEdit(item)}
+                onMoveUp={() => moveItem(item.id, "up")}
+                onMoveDown={() => moveItem(item.id, "down")}
+              />
+            );
+          })}
         </div>
       </section>
     </div>
@@ -655,7 +698,8 @@ function WeatherMini({ city, date }: { city: string; date: string }) {
         const today = new Date();
         const target = parseDateKey(date);
         const diffDays = Math.floor(
-          (target.getTime() - new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) /
+          (target.getTime() -
+            new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()) /
             86400000
         );
 
@@ -775,7 +819,7 @@ function TimelineCard({
   onMoveUp,
   onMoveDown
 }: {
-  item: ItineraryItem;
+  item: TimedItineraryItem;
   isAuto: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
@@ -786,6 +830,7 @@ function TimelineCard({
   onMoveDown: () => void;
 }) {
   const icon = getItemIcon(item.title, item.notes);
+  const itemTime = getItemTime(item);
 
   return (
     <article className="relative overflow-hidden rounded-[2rem] bg-white p-5 shadow-xl">
@@ -801,7 +846,7 @@ function TimelineCard({
           <div className="flex items-start justify-between gap-2">
             <div>
               <p className="text-sm font-black text-[#B85C38]">
-                {timeBlockLabel[item.timeBlock]}
+                {itemTime} · {timeBlockLabel[item.timeBlock]}
               </p>
               <h3 className="mt-1 text-xl font-black text-[#12355B]">
                 {item.title}
@@ -1428,14 +1473,19 @@ function ItineraryModal({
   mode: "add" | "edit";
   data: TripData;
   selectedDate: string;
-  initialItem?: ItineraryItem;
+  initialItem?: TimedItineraryItem;
   onClose: () => void;
-  onSave: (item: ItineraryItem) => void;
+  onSave: (item: TimedItineraryItem) => void;
 }) {
+  const initialTime = initialItem?.time || fallbackTimeFromBlock(initialItem?.timeBlock || "Morning");
+
   const [title, setTitle] = useState(initialItem?.title || "");
   const [city, setCity] = useState(initialItem?.city || euroCity(selectedDate, data));
   const [date, setDate] = useState(initialItem?.date || selectedDate);
-  const [timeBlock, setTimeBlock] = useState<TimeBlock>(initialItem?.timeBlock || "Morning");
+  const [time, setTime] = useState(initialTime);
+  const [timeBlock, setTimeBlock] = useState<TimeBlock>(
+    initialItem?.timeBlock || timeBlockFromTime(initialTime)
+  );
   const [address, setAddress] = useState(initialItem?.address || "");
   const [cost, setCost] = useState(String(initialItem?.estimatedCost ?? 0));
   const [notes, setNotes] = useState(initialItem?.notes || "");
@@ -1449,7 +1499,8 @@ function ItineraryModal({
       title,
       city,
       date,
-      timeBlock,
+      time,
+      timeBlock: timeBlockFromTime(time),
       address,
       notes,
       estimatedCost: Number(cost || 0),
@@ -1465,18 +1516,36 @@ function ItineraryModal({
       <Field label="城市" value={city} setValue={setCity} />
       <Field label="日期" type="date" value={date} setValue={setDate} />
 
+      <Field
+        label="時間"
+        type="time"
+        value={time}
+        setValue={value => {
+          setTime(value);
+          setTimeBlock(timeBlockFromTime(value));
+        }}
+      />
+
       <Select
         label="時段"
         value={timeBlock}
         options={timeBlocks}
         labels={timeBlockLabel}
-        setValue={v => setTimeBlock(v as TimeBlock)}
+        setValue={value => {
+          const block = value as TimeBlock;
+          setTimeBlock(block);
+
+          if (!time) {
+            setTime(fallbackTimeFromBlock(block));
+          }
+        }}
       />
 
       <Field label="地址" value={address} setValue={setAddress} />
       <Field label="Google Maps 連結" value={googleMapsLink} setValue={setGoogleMapsLink} />
       <Field label="費用" type="number" value={cost} setValue={setCost} />
       <TextArea label="備註" value={notes} setValue={setNotes} />
+
       <PrimaryButton onClick={submit}>
         {mode === "add" ? "儲存行程" : "儲存修改"}
       </PrimaryButton>
@@ -1525,7 +1594,7 @@ function AddExpenseModal({
         value={category}
         options={expenseCategories}
         labels={categoryLabel}
-        setValue={v => setCategory(v as ExpenseCategory)}
+        setValue={value => setCategory(value as ExpenseCategory)}
       />
 
       <Field label="金額" type="number" value={amount} setValue={setAmount} />
@@ -1626,7 +1695,7 @@ function Field({
       <input
         type={type}
         value={value}
-        onChange={e => setValue(e.target.value)}
+        onChange={event => setValue(event.target.value)}
         className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-base font-semibold outline-none focus:border-[#12355B]"
       />
     </label>
@@ -1648,7 +1717,7 @@ function TextArea({
 
       <textarea
         value={value}
-        onChange={e => setValue(e.target.value)}
+        onChange={event => setValue(event.target.value)}
         className="mt-1 min-h-24 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-base font-semibold outline-none focus:border-[#12355B]"
       />
     </label>
@@ -1674,7 +1743,7 @@ function Select({
 
       <select
         value={value}
-        onChange={e => setValue(e.target.value)}
+        onChange={event => setValue(event.target.value)}
         className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-base font-semibold outline-none focus:border-[#12355B]"
       >
         {options.map(option => (
