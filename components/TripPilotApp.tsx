@@ -2216,9 +2216,7 @@ function ShoppingPage({
     update({
       ...data,
       itinerary: [...data.itinerary, nextItem],
-      wishlist: data.wishlist.map(existing =>
-        existing.id === item.id ? { ...existing, completed: true } : existing
-      )
+      wishlist: data.wishlist
     });
 
     alert("已加入行程。");
@@ -2312,11 +2310,6 @@ function ShoppingCard({
             <span className="rounded-full bg-[#EEF5EA] px-3 py-1 text-xs font-black text-[#183B63]">
               {item.category}
             </span>
-            {(item as WishlistItem & { completed?: boolean }).completed && (
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
-                已加入行程
-              </span>
-            )}
           </div>
 
           <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
@@ -2741,8 +2734,7 @@ function ItineraryModal({
       notes,
       estimatedCost: Number(cost || 0),
       currency: initialItem?.currency || data.trip.mainCurrency,
-      googleMapsLink,
-      completed: (initialItem as WishlistItem & { completed?: boolean } | undefined)?.completed || false
+      googleMapsLink
     });
   }
 
@@ -2889,8 +2881,7 @@ function AddShoppingModal({
       currency,
       estimatedDuration,
       notes,
-      googleMapsLink,
-      completed: (initialItem as WishlistItem & { completed?: boolean } | undefined)?.completed || false
+      googleMapsLink
     });
   }
 
