@@ -537,13 +537,9 @@ function TripHero({ data }: { data: TripDataV2 }) {
           {data.trip.startDate} → {data.trip.endDate}
         </p>
 
-        <p className="mt-2 text-sm leading-relaxed text-[#4F5F70]">{data.trip.route}</p>
-
-        <div className="mt-4 rounded-2xl border border-[#E8DED0] bg-[#FFFDF8]/72 px-4 py-3 backdrop-blur-sm">
-          <p className="text-sm font-black tracking-wide text-[#6D7B8A]">
-            Vienna · Prague · Budapest · Bratislava
-          </p>
-        </div>
+        <p className="mt-4 text-sm font-black tracking-wide text-[#6D7B8A] drop-shadow-sm">
+          Vienna · Prague · Budapest · Bratislava
+        </p>
 
         <div className="mt-4 grid grid-cols-2 gap-3">
           <HeroStat label="天數" value={`${days}`} />
@@ -551,7 +547,7 @@ function TripHero({ data }: { data: TripDataV2 }) {
         </div>
 
         {checklist.length > 0 && (
-          <div className="mt-4 rounded-2xl border border-[#E8DED0] bg-[#FAF6EF] p-3">
+          <div className="mt-4 rounded-2xl border border-white/45 bg-[#FFFDF8]/58 p-3 shadow-sm backdrop-blur-sm">
             <div className="flex items-center justify-between text-sm font-black">
               <span>行前準備</span>
               <span>
@@ -573,7 +569,7 @@ function TripHero({ data }: { data: TripDataV2 }) {
 
 function HeroStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-[#E8DED0] bg-[#FAF6EF] p-3">
+    <div className="rounded-2xl border border-white/45 bg-[#FFFDF8]/58 p-3 shadow-sm backdrop-blur-sm">
       <p className="text-xs text-[#6D7B8A]">{label}</p>
       <p className="mt-1 text-lg font-black text-[#183B63]">{value}</p>
     </div>
@@ -860,9 +856,9 @@ function DailySummaryCard({
 
 
       <div className="mt-4 grid grid-cols-3 gap-2">
-        <MiniInfo label="行程" value={`${dayItems.length} 個`} color={cityTheme.soft} />
-        <MiniInfo label="進度" value={`${progress}%`} color={cityTheme.soft} />
-        <CompactLocalTimeInfo city={weatherCity} color={cityTheme.soft} />
+        <MiniInfo label="行程" value={`${dayItems.length} 個`} />
+        <MiniInfo label="進度" value={`${progress}%`} />
+        <CompactLocalTimeInfo city={weatherCity} />
       </div>
 
       <div className="mt-4 h-2 rounded-full bg-[#E8DED0]">
@@ -873,7 +869,7 @@ function DailySummaryCard({
       </div>
 
       {nextItem && (
-        <div className="mt-4 rounded-2xl p-4" style={{ backgroundColor: cityTheme.soft }}>
+        <div className="mt-4 rounded-2xl border border-white/45 bg-[#FFFDF8]/58 p-4 shadow-sm backdrop-blur-sm">
           <p className="text-xs font-black" style={{ color: cityTheme.accent }}>
             下一個行程
           </p>
@@ -1156,9 +1152,12 @@ function DaySelector({
   );
 }
 
-function MiniInfo({ label, value, color = "#FAF6EF" }: { label: string; value: string; color?: string }) {
+function MiniInfo({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div className="rounded-2xl p-3" style={{ backgroundColor: color }}>
+    <div
+      className="rounded-2xl border border-white/45 p-3 shadow-sm backdrop-blur-sm"
+      style={{ backgroundColor: color || "rgba(255,253,248,0.58)" }}
+    >
       <p className="text-xs font-bold text-[#6D7B8A]">{label}</p>
       <p className="mt-1 text-sm font-black text-[#183B63]">{value}</p>
     </div>
@@ -1166,7 +1165,7 @@ function MiniInfo({ label, value, color = "#FAF6EF" }: { label: string; value: s
 }
 
 
-function CompactLocalTimeInfo({ city, color = "#FAF6EF" }: { city: string; color?: string }) {
+function CompactLocalTimeInfo({ city, color }: { city: string; color?: string }) {
   const [time, setTime] = useState("--:--");
   const label = cityCoords[city]?.label || city;
 
@@ -1190,7 +1189,10 @@ function CompactLocalTimeInfo({ city, color = "#FAF6EF" }: { city: string; color
   }, [city]);
 
   return (
-    <div className="rounded-2xl p-3" style={{ backgroundColor: color }}>
+    <div
+      className="rounded-2xl border border-white/45 p-3 shadow-sm backdrop-blur-sm"
+      style={{ backgroundColor: color || "rgba(255,253,248,0.58)" }}
+    >
       <p className="text-xs font-bold text-[#6D7B8A]">當地時間</p>
       <p className="mt-1 text-sm font-black text-[#183B63]">{time}</p>
       <p className="truncate text-[11px] font-semibold text-[#6D7B8A]">{label}</p>
