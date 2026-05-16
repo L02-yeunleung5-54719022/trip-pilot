@@ -13,7 +13,6 @@ import type {
 } from "@/lib/types";
 
 type MainTab = "trip" | "map" | "budget" | "shopping" | "info";
-
 type ChecklistCategory = "Documents" | "Packing" | "Money" | "Transport" | "Other";
 
 type ChecklistItem = {
@@ -39,17 +38,6 @@ type WeatherState = {
   min?: number;
   code?: number;
   text: string;
-};
-
-type LocalTimeState = {
-  label: string;
-  time: string;
-};
-
-type ItemType = {
-  label: string;
-  icon: string;
-  color: string;
 };
 
 const tabs: { key: MainTab; label: string; icon: string }[] = [
@@ -94,47 +82,75 @@ const checklistCategoryLabel: Record<ChecklistCategory, string> = {
   Other: "其他"
 };
 
-const cityCoords: Record<
-  string,
-  { lat: number; lon: number; label: string; timezone: string }
-> = {
+const cityCoords: Record<string, { lat: number; lon: number; label: string; timezone: string }> = {
+  Vienna: { lat: 48.2082, lon: 16.3738, label: "維也納", timezone: "Europe/Vienna" },
+  Prague: { lat: 50.0755, lon: 14.4378, label: "布拉格", timezone: "Europe/Prague" },
+  Budapest: { lat: 47.4979, lon: 19.0402, label: "布達佩斯", timezone: "Europe/Budapest" },
+  Bratislava: { lat: 48.1486, lon: 17.1077, label: "Bratislava", timezone: "Europe/Bratislava" },
+  Vancouver: { lat: 49.2827, lon: -123.1207, label: "溫哥華", timezone: "America/Vancouver" },
+  Frankfurt: { lat: 50.1109, lon: 8.6821, label: "法蘭克福", timezone: "Europe/Berlin" }
+};
+
+const cityThemeMap: Record<string, { accent: string; soft: string; badge: string; banner: string; landmark: string }> = {
   Vienna: {
-    lat: 48.2082,
-    lon: 16.3738,
-    label: "維也納",
-    timezone: "Europe/Vienna"
+    accent: "#7A9A6D",
+    soft: "#EEF5EA",
+    badge: "維也納",
+    banner: "bg-[#7A9A6D]",
+    landmark: "🏰"
   },
   Prague: {
-    lat: 50.0755,
-    lon: 14.4378,
-    label: "布拉格",
-    timezone: "Europe/Prague"
+    accent: "#C96A7A",
+    soft: "#FAEEF1",
+    badge: "布拉格",
+    banner: "bg-[#C96A7A]",
+    landmark: "⛪"
   },
   Budapest: {
-    lat: 47.4979,
-    lon: 19.0402,
-    label: "布達佩斯",
-    timezone: "Europe/Budapest"
+    accent: "#D39232",
+    soft: "#FCF1DF",
+    badge: "布達佩斯",
+    banner: "bg-[#D39232]",
+    landmark: "🏛"
   },
   Bratislava: {
-    lat: 48.1486,
-    lon: 17.1077,
-    label: "Bratislava",
-    timezone: "Europe/Bratislava"
-  },
-  Vancouver: {
-    lat: 49.2827,
-    lon: -123.1207,
-    label: "溫哥華",
-    timezone: "America/Vancouver"
+    accent: "#8C6BB1",
+    soft: "#F3ECFA",
+    badge: "Bratislava",
+    banner: "bg-[#8C6BB1]",
+    landmark: "🏯"
   },
   Frankfurt: {
-    lat: 50.1109,
-    lon: 8.6821,
-    label: "法蘭克福",
-    timezone: "Europe/Berlin"
+    accent: "#6D7B8A",
+    soft: "#EEF2F5",
+    badge: "法蘭克福",
+    banner: "bg-[#6D7B8A]",
+    landmark: "✈️"
+  },
+  Vancouver: {
+    accent: "#4F8AA3",
+    soft: "#EAF4F8",
+    badge: "溫哥華",
+    banner: "bg-[#4F8AA3]",
+    landmark: "🌲"
   }
 };
+
+function getThemeByCity(city: string) {
+  if (city.includes("Vienna")) return cityThemeMap.Vienna;
+  if (city.includes("Prague")) return cityThemeMap.Prague;
+  if (city.includes("Budapest")) return cityThemeMap.Budapest;
+  if (city.includes("Bratislava")) return cityThemeMap.Bratislava;
+  if (city.includes("Frankfurt")) return cityThemeMap.Frankfurt;
+  if (city.includes("Vancouver")) return cityThemeMap.Vancouver;
+  return {
+    accent: "#C86A45",
+    soft: "#F8EFE8",
+    badge: "Central Europe",
+    banner: "bg-[#C86A45]",
+    landmark: "🧳"
+  };
+}
 
 function uid(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -159,6 +175,7 @@ function formatDateKey(date: Date) {
 }
 
 function dateLabel(date: string) {
+  if (date === "pretrip") return "行前";
   const [, month, day] = date.split("-");
   return `${Number(month)}/${Number(day)}`;
 }
@@ -184,7 +201,6 @@ function fallbackTimeFromBlock(block: TimeBlock) {
 
 function timeBlockFromTime(time: string): TimeBlock {
   const hour = Number(time.split(":")[0]);
-
   if (Number.isNaN(hour)) return "Morning";
   if (hour < 12) return "Morning";
   if (hour < 18) return "Afternoon";
@@ -218,7 +234,7 @@ function weatherText(code?: number) {
   return "天氣變化";
 }
 
-function getItemType(item: TimedItineraryItem): ItemType {
+function getItemType(item: TimedItineraryItem) {
   const text = `${item.title} ${item.notes}`.toLowerCase();
 
   if (
@@ -279,61 +295,6 @@ function getItemType(item: TimedItineraryItem): ItemType {
   return { label: "行程", icon: "📍", color: "bg-slate-100 text-slate-700" };
 }
 
-function isTransportType(type: ItemType) {
-  return type.label === "航班" || type.label === "火車" || type.label === "巴士";
-}
-
-function getCityCode(city: string) {
-  const normalized = city.toLowerCase();
-
-  if (normalized.includes("vancouver") || normalized.includes("溫哥華")) return "YVR";
-  if (normalized.includes("frankfurt") || normalized.includes("法蘭克福")) return "FRA";
-  if (normalized.includes("vienna") || normalized.includes("維也納")) return "VIE";
-  if (normalized.includes("prague") || normalized.includes("布拉格")) return "PRG";
-  if (normalized.includes("budapest") || normalized.includes("布達佩斯")) return "BUD";
-  if (normalized.includes("bratislava")) return "BTS";
-
-  return city.slice(0, 3).toUpperCase();
-}
-
-function cleanRouteName(value: string) {
-  return value
-    .replace("出發航班：", "")
-    .replace("轉機航班：", "")
-    .replace("離開歐洲：", "")
-    .replace("火車：", "")
-    .replace("巴士：", "")
-    .trim();
-}
-
-function getRouteParts(item: TimedItineraryItem) {
-  const cityParts = item.city
-    ? item.city.split("/").map(part => part.trim()).filter(Boolean)
-    : [];
-
-  if (cityParts.length >= 2) {
-    return {
-      fromCity: cityParts[0],
-      toCity: cityParts[1]
-    };
-  }
-
-  const title = cleanRouteName(item.title);
-  const titleParts = title.split("→").map(part => part.trim()).filter(Boolean);
-
-  if (titleParts.length >= 2) {
-    return {
-      fromCity: titleParts[0],
-      toCity: titleParts[1]
-    };
-  }
-
-  return {
-    fromCity: "FROM",
-    toCity: "TO"
-  };
-}
-
 function euroCity(date: string, data: TripDataV2) {
   if (date === "pretrip") return "Central Europe";
 
@@ -351,7 +312,6 @@ function euroCity(date: string, data: TripDataV2) {
   if (date === "2026-05-18") return "Vancouver / Frankfurt";
   if (date === "2026-05-19") return "Frankfurt / Vienna";
   if (date === "2026-05-31") return "Vienna / Frankfurt";
-
   return "Central Europe";
 }
 
@@ -369,10 +329,8 @@ function sortItineraryItems(items: TimedItineraryItem[]) {
   return [...items].sort((a, b) => {
     const timeDiff = getItemTime(a).localeCompare(getItemTime(b));
     if (timeDiff !== 0) return timeDiff;
-
     const orderDiff = (a.order || 0) - (b.order || 0);
     if (orderDiff !== 0) return orderDiff;
-
     return a.title.localeCompare(b.title);
   });
 }
@@ -386,12 +344,24 @@ function exchangeRateToHKD(currency: string) {
     HUF: 0.022,
     USD: 7.8
   };
-
   return rates[currency] || 1;
 }
 
 function toHKD(amount: number, currency: string) {
   return amount * exchangeRateToHKD(currency);
+}
+
+function getCityCode(city: string) {
+  const normalized = city.toLowerCase();
+
+  if (normalized.includes("vancouver")) return "YVR";
+  if (normalized.includes("frankfurt")) return "FRA";
+  if (normalized.includes("vienna")) return "VIE";
+  if (normalized.includes("prague")) return "PRG";
+  if (normalized.includes("budapest")) return "BUD";
+  if (normalized.includes("bratislava")) return "BTS";
+
+  return city.slice(0, 3).toUpperCase();
 }
 
 export default function TripPilotApp() {
@@ -415,11 +385,11 @@ export default function TripPilotApp() {
 
   if (!data) {
     return (
-      <main className="grid min-h-screen place-items-center bg-[#F7EFE5] p-6">
-        <div className="rounded-[2rem] bg-white p-8 shadow-2xl">
+      <main className="grid min-h-screen place-items-center bg-[#F7F1E7] p-6">
+        <div className="rounded-[2rem] border border-[#E8DED0] bg-[#FFFDF8] p-8 shadow-[0_12px_30px_rgba(24,59,99,0.08)]">
           <div className="text-4xl">🧳</div>
-          <h1 className="mt-4 text-2xl font-black text-[#12355B]">TripPilot</h1>
-          <p className="mt-2 text-slate-500">正在載入你的旅程...</p>
+          <h1 className="mt-4 text-2xl font-black text-[#183B63]">TripPilot</h1>
+          <p className="mt-2 text-[#6D7B8A]">正在載入你的旅程...</p>
         </div>
       </main>
     );
@@ -428,8 +398,10 @@ export default function TripPilotApp() {
   const update = (next: TripDataV2) => setData(next);
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-[#F7EFE5] via-[#EAF2F4] to-white pb-24 text-[#172033]">
+    <main className="min-h-screen bg-gradient-to-b from-[#F7F1E7] via-[#F3EFE8] to-[#EEF4F1] pb-24 text-[#183B63]">
       <div className="mx-auto max-w-md px-4 pt-[calc(env(safe-area-inset-top)+0.25rem)]">
+        <TopBar />
+
         {activeTab === "trip" && (
           <TripHome
             data={data}
@@ -513,6 +485,119 @@ export default function TripPilotApp() {
   );
 }
 
+function TopBar() {
+  return (
+    <div className="safe-top mb-4 flex items-center justify-between">
+      <div>
+        <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#C86A45]">
+          TripPilot v2
+        </p>
+        <h1 className="text-xl font-black text-[#183B63]">中歐旅行助手</h1>
+      </div>
+
+      <div className="grid h-11 w-11 place-items-center rounded-full border border-[#E8DED0] bg-[#FFFDF8] text-xl shadow-[0_8px_20px_rgba(24,59,99,0.08)]">
+        🧳
+      </div>
+    </div>
+  );
+}
+
+function TripHero({ data }: { data: TripDataV2 }) {
+  const totalAccommodation = data.accommodations.reduce((sum, x) => sum + x.totalCost, 0);
+  const days =
+    Math.ceil(
+      (parseDateKey(data.trip.endDate).getTime() -
+        parseDateKey(data.trip.startDate).getTime()) /
+        86400000
+    ) + 1;
+
+  const checklist = data.checklist || [];
+  const completedChecklist = checklist.filter(item => item.completed).length;
+
+  return (
+    <section className="relative overflow-hidden rounded-[2.25rem] border border-[#E8DED0] bg-[#FFFDF8] p-5 text-[#183B63] shadow-[0_12px_30px_rgba(24,59,99,0.08)]">
+      <div className="absolute -right-12 -top-10 h-36 w-36 rounded-full bg-[#D39232]/15" />
+      <div className="absolute -bottom-14 left-8 h-36 w-36 rounded-full bg-[#7A9A6D]/12" />
+
+      <div className="relative z-10">
+        <div className="mb-6 flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-[#6D7B8A]">Central Europe</p>
+            <h2 className="mt-1 text-3xl font-black leading-tight text-[#183B63]">
+              {data.trip.name}
+            </h2>
+          </div>
+
+          <div className="rounded-2xl bg-[#EEF5EA] px-3 py-2 text-sm font-black text-[#7A9A6D]">
+            ✈️ EU
+          </div>
+        </div>
+
+        <p className="text-sm font-bold text-[#6D7B8A]">
+          {data.trip.startDate} → {data.trip.endDate}
+        </p>
+
+        <p className="mt-2 text-sm leading-relaxed text-[#4F5F70]">{data.trip.route}</p>
+
+        <CentralEuropeSkyline />
+
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          <HeroStat label="天數" value={`${days}`} />
+          <HeroStat label="城市" value="5" />
+          <HeroStat
+            label="住宿"
+            value={money(totalAccommodation, data.trip.mainCurrency).replace("HKD ", "$")}
+          />
+        </div>
+
+        {checklist.length > 0 && (
+          <div className="mt-4 rounded-2xl border border-[#E8DED0] bg-[#FAF6EF] p-3">
+            <div className="flex items-center justify-between text-sm font-black">
+              <span>行前準備</span>
+              <span>
+                {completedChecklist}/{checklist.length}
+              </span>
+            </div>
+            <div className="mt-2 h-2 rounded-full bg-[#E8DED0]">
+              <div
+                className="h-2 rounded-full bg-[#C86A45]"
+                style={{ width: `${checklist.length ? (completedChecklist / checklist.length) * 100 : 0}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function HeroStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-[#E8DED0] bg-[#FAF6EF] p-3">
+      <p className="text-xs text-[#6D7B8A]">{label}</p>
+      <p className="mt-1 text-lg font-black text-[#183B63]">{value}</p>
+    </div>
+  );
+}
+
+function CentralEuropeSkyline() {
+  return (
+    <div className="relative mt-4 h-28 overflow-hidden rounded-[1.5rem] border border-[#E8DED0] bg-gradient-to-b from-[#F9F4EC] to-[#F4EEE4]">
+      <div className="absolute inset-x-0 bottom-0 h-10 bg-[#DDE8E0]" />
+      <div className="absolute left-3 bottom-8 text-5xl opacity-90">⛪</div>
+      <div className="absolute left-20 bottom-10 text-4xl opacity-90">🏰</div>
+      <div className="absolute left-36 bottom-9 text-5xl opacity-90">🏛</div>
+      <div className="absolute left-56 bottom-8 text-4xl opacity-90">🏯</div>
+      <div className="absolute right-6 bottom-9 text-4xl opacity-90">⛪</div>
+      <div className="absolute top-3 left-4 text-xs font-bold text-[#6D7B8A]">
+        Vienna · Prague · Budapest · Bratislava
+      </div>
+      <div className="absolute top-3 right-4 text-xl">☁️ ✨</div>
+      <div className="absolute bottom-2 left-0 h-px w-full border-t border-dashed border-[#C86A45]/40" />
+    </div>
+  );
+}
+
 function TripHome({
   data,
   update,
@@ -529,74 +614,77 @@ function TripHome({
   onEdit: (item: TimedItineraryItem) => void;
 }) {
   const dates = useMemo(() => getDates(data.trip.startDate, data.trip.endDate), [data]);
+
   const isPreTrip = selectedDate === "pretrip";
 
   const itineraryItems = (data.itinerary as TimedItineraryItem[]).filter(
     item => item.date === selectedDate
   );
 
-  const stayItems: TimedItineraryItem[] = data.accommodations.flatMap(stay => {
-    const items: TimedItineraryItem[] = [];
+  const stayItems: TimedItineraryItem[] = isPreTrip
+    ? []
+    : data.accommodations.flatMap(stay => {
+        const items: TimedItineraryItem[] = [];
 
-    const alreadyHasCheckIn = data.itinerary.some(
-      item =>
-        item.date === stay.checkInDate &&
-        item.address === stay.address &&
-        (item.title.includes("入住") || item.title.includes(stay.name))
-    );
+        const alreadyHasCheckIn = data.itinerary.some(
+          item =>
+            item.date === stay.checkInDate &&
+            item.address === stay.address &&
+            (item.title.includes("入住") || item.title.includes(stay.name))
+        );
 
-    const alreadyHasCheckOut = data.itinerary.some(
-      item =>
-        item.date === stay.checkOutDate &&
-        item.address === stay.address &&
-        (item.title.includes("退房") || item.title.includes(stay.name))
-    );
+        const alreadyHasCheckOut = data.itinerary.some(
+          item =>
+            item.date === stay.checkOutDate &&
+            item.address === stay.address &&
+            (item.title.includes("退房") || item.title.includes(stay.name))
+        );
 
-    if (stay.checkOutDate === selectedDate && !alreadyHasCheckOut) {
-      items.push({
-        id: `auto-checkout-${stay.id}`,
-        title: `退房：${stay.name}`,
-        city: stay.city,
-        date: stay.checkOutDate,
-        time: "10:00",
-        order: 0,
-        timeBlock: "Morning",
-        address: stay.address,
-        notes: `${stay.city} 住宿退房｜${stay.checkInDate} → ${stay.checkOutDate}`,
-        estimatedCost: 0,
-        currency: stay.currency,
-        googleMapsLink: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-          stay.address
-        )}`,
-        completed: false
+        if (stay.checkOutDate === selectedDate && !alreadyHasCheckOut) {
+          items.push({
+            id: `auto-checkout-${stay.id}`,
+            title: `退房：${stay.name}`,
+            city: stay.city,
+            date: stay.checkOutDate,
+            time: "10:00",
+            order: 0,
+            timeBlock: "Morning",
+            address: stay.address,
+            notes: `${stay.city} 住宿退房｜${stay.checkInDate} → ${stay.checkOutDate}`,
+            estimatedCost: 0,
+            currency: stay.currency,
+            googleMapsLink: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+              stay.address
+            )}`,
+            completed: false
+          });
+        }
+
+        if (stay.checkInDate === selectedDate && !alreadyHasCheckIn) {
+          items.push({
+            id: `auto-checkin-${stay.id}`,
+            title: `入住：${stay.name}`,
+            city: stay.city,
+            date: stay.checkInDate,
+            time: "18:00",
+            order: 99,
+            timeBlock: "Evening",
+            address: stay.address,
+            notes: `${stay.city} 住宿入住｜${stay.checkInDate} → ${stay.checkOutDate}｜${money(
+              stay.totalCost,
+              stay.currency
+            )}｜${stay.nights} 晚`,
+            estimatedCost: stay.totalCost,
+            currency: stay.currency,
+            googleMapsLink: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+              stay.address
+            )}`,
+            completed: false
+          });
+        }
+
+        return items;
       });
-    }
-
-    if (stay.checkInDate === selectedDate && !alreadyHasCheckIn) {
-      items.push({
-        id: `auto-checkin-${stay.id}`,
-        title: `入住：${stay.name}`,
-        city: stay.city,
-        date: stay.checkInDate,
-        time: "18:00",
-        order: 99,
-        timeBlock: "Evening",
-        address: stay.address,
-        notes: `${stay.city} 住宿入住｜${stay.checkInDate} → ${stay.checkOutDate}｜${money(
-          stay.totalCost,
-          stay.currency
-        )}｜${stay.nights} 晚`,
-        estimatedCost: stay.totalCost,
-        currency: stay.currency,
-        googleMapsLink: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-          stay.address
-        )}`,
-        completed: false
-      });
-    }
-
-    return items;
-  });
 
   const dayItems = sortItineraryItems([...itineraryItems, ...stayItems]);
   const nonAutoDayItems = sortItineraryItems(
@@ -639,7 +727,6 @@ function TripHome({
 
     const currentItem = nonAutoDayItems[currentIndex];
     const targetItem = nonAutoDayItems[targetIndex];
-
     const currentTime = getItemTime(currentItem);
     const targetTime = getItemTime(targetItem);
 
@@ -647,19 +734,11 @@ function TripHome({
       ...data,
       itinerary: data.itinerary.map(item => {
         if (item.id === currentItem.id) {
-          return {
-            ...item,
-            time: targetTime,
-            timeBlock: timeBlockFromTime(targetTime)
-          };
+          return { ...item, time: targetTime, timeBlock: timeBlockFromTime(targetTime) };
         }
 
         if (item.id === targetItem.id) {
-          return {
-            ...item,
-            time: currentTime,
-            timeBlock: timeBlockFromTime(currentTime)
-          };
+          return { ...item, time: currentTime, timeBlock: timeBlockFromTime(currentTime) };
         }
 
         return item;
@@ -668,152 +747,68 @@ function TripHome({
   }
 
   return (
-    <div className="space-y-5 pt-2">
-      {isPreTrip ? (
-        <TripHero data={data} />
-      ) : (
-        <DailySummaryCard
-          data={data}
-          selectedDate={selectedDate}
-          city={city}
-          weatherCity={weatherCity}
-          dayItems={dayItems}
-          completedCount={completedCount}
-          nextItem={nextItem}
-        />
-      )}
+    <div className="space-y-5">
+      <TripHero data={data} />
 
-      <DaySelector
-        dates={dates}
-        selectedDate={selectedDate}
-        setSelectedDate={setSelectedDate}
-      />
+      <DaySelector dates={dates} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
 
       {isPreTrip ? (
         <ChecklistPanel data={data} update={update} />
       ) : (
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-bold text-[#B85C38]">Timeline</p>
-              <h2 className="text-2xl font-black text-[#12355B]">今日行程</h2>
-            </div>
-
-            <button
-              onClick={onAdd}
-              className="rounded-full bg-[#B85C38] px-4 py-3 text-sm font-black text-white shadow-lg"
-            >
-              ＋新增
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            {dayItems.length === 0 && (
-              <EmptyCard
-                icon="🗓"
-                title="今日未有行程"
-                text="可以加入景點、交通、餐廳或住宿安排。"
-              />
-            )}
-
-            {dayItems.map(item => {
-              const isAuto = item.id.startsWith("auto-");
-              const moveIndex = nonAutoDayItems.findIndex(movable => movable.id === item.id);
-
-              return (
-                <TimelineCard
-                  key={item.id}
-                  item={item}
-                  isAuto={isAuto}
-                  canMoveUp={!isAuto && moveIndex > 0}
-                  canMoveDown={
-                    !isAuto && moveIndex >= 0 && moveIndex < nonAutoDayItems.length - 1
-                  }
-                  onToggle={() => toggleComplete(item.id)}
-                  onDelete={() => deleteItem(item.id)}
-                  onEdit={() => onEdit(item)}
-                  onMoveUp={() => moveItem(item.id, "up")}
-                  onMoveDown={() => moveItem(item.id, "down")}
-                />
-              );
-            })}
-          </div>
-        </section>
-      )}
-    </div>
-  );
-}
-
-function TripHero({ data }: { data: TripDataV2 }) {
-  const totalAccommodation = data.accommodations.reduce((sum, x) => sum + x.totalCost, 0);
-  const days =
-    Math.ceil(
-      (parseDateKey(data.trip.endDate).getTime() -
-        parseDateKey(data.trip.startDate).getTime()) /
-        86400000
-    ) + 1;
-
-  const checklist = data.checklist || [];
-  const completedChecklist = checklist.filter(item => item.completed).length;
-
-  return (
-    <section className="relative overflow-hidden rounded-[2.25rem] bg-[#12355B] p-6 text-white shadow-2xl">
-      <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-[#D6A84F]/20" />
-      <div className="absolute -bottom-16 left-8 h-40 w-40 rounded-full bg-white/10" />
-
-      <div className="relative z-10">
-        <div className="mb-8 flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-white/70">Central Europe</p>
-            <h2 className="mt-1 text-3xl font-black leading-tight">{data.trip.name}</h2>
-          </div>
-
-          <div className="rounded-2xl bg-white/15 px-3 py-2 text-sm font-bold backdrop-blur">
-            ✈️ EU
-          </div>
-        </div>
-
-        <p className="text-sm font-semibold text-white/75">
-          {data.trip.startDate} → {data.trip.endDate}
-        </p>
-
-        <p className="mt-2 text-sm leading-relaxed text-white/90">{data.trip.route}</p>
-
-        <div className="mt-6 grid grid-cols-3 gap-3">
-          <HeroStat label="天數" value={`${days}`} />
-          <HeroStat label="城市" value="5" />
-          <HeroStat
-            label="住宿"
-            value={money(totalAccommodation, data.trip.mainCurrency).replace("HKD ", "$")}
+        <>
+          <DailySummaryCard
+            data={data}
+            selectedDate={selectedDate}
+            city={city}
+            weatherCity={weatherCity}
+            dayItems={dayItems}
+            completedCount={completedCount}
+            nextItem={nextItem}
           />
-        </div>
 
-        {checklist.length > 0 && (
-          <div className="mt-4 rounded-2xl bg-white/12 p-3">
-            <div className="flex items-center justify-between text-sm font-bold">
-              <span>行前準備</span>
-              <span>
-                {completedChecklist}/{checklist.length}
-              </span>
-            </div>
-            <div className="mt-2 h-2 rounded-full bg-white/15">
-              <div
-                className="h-2 rounded-full bg-[#D6A84F]"
-                style={{ width: `${(completedChecklist / checklist.length) * 100}%` }}
-              />
-            </div>
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
+          <section>
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-[#C86A45]">Timeline</p>
+                <h2 className="text-2xl font-black text-[#183B63]">今日行程</h2>
+              </div>
 
-function HeroStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl bg-white/12 p-3 backdrop-blur">
-      <p className="text-xs text-white/60">{label}</p>
-      <p className="mt-1 text-lg font-black">{value}</p>
+              <button
+                onClick={onAdd}
+                className="rounded-full bg-[#C86A45] px-4 py-3 text-sm font-black text-white shadow-[0_8px_20px_rgba(200,106,69,0.28)]"
+              >
+                ＋新增
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {dayItems.length === 0 && (
+                <EmptyCard icon="🗓" title="今日未有行程" text="可以加入景點、交通、餐廳或住宿安排。" />
+              )}
+
+              {dayItems.map(item => {
+                const isAuto = item.id.startsWith("auto-");
+                const moveIndex = nonAutoDayItems.findIndex(movable => movable.id === item.id);
+
+                return (
+                  <TimelineCard
+                    key={item.id}
+                    item={item}
+                    isAuto={isAuto}
+                    canMoveUp={!isAuto && moveIndex > 0}
+                    canMoveDown={!isAuto && moveIndex >= 0 && moveIndex < nonAutoDayItems.length - 1}
+                    onToggle={() => toggleComplete(item.id)}
+                    onDelete={() => deleteItem(item.id)}
+                    onEdit={() => onEdit(item)}
+                    onMoveUp={() => moveItem(item.id, "up")}
+                    onMoveDown={() => moveItem(item.id, "down")}
+                  />
+                );
+              })}
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }
@@ -836,14 +831,17 @@ function DailySummaryCard({
   nextItem?: TimedItineraryItem;
 }) {
   const progress = dayItems.length ? Math.round((completedCount / dayItems.length) * 100) : 0;
+  const cityTheme = getThemeByCity(city);
 
   return (
-    <section className="rounded-[2rem] border border-white/70 bg-white/80 p-5 shadow-xl backdrop-blur">
+    <section className="rounded-[2rem] border border-[#E8DED0] bg-[#FFFDF8] p-5 shadow-[0_12px_30px_rgba(24,59,99,0.08)]">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-bold text-[#B85C38]">今日摘要 · {dateLabel(selectedDate)}</p>
-          <h2 className="mt-1 text-2xl font-black text-[#12355B]">{city}</h2>
-          <p className="mt-1 text-sm font-semibold text-slate-500">
+          <p className="text-sm font-bold" style={{ color: cityTheme.accent }}>
+            今日摘要 · {dateLabel(selectedDate)}
+          </p>
+          <h2 className="mt-1 text-2xl font-black text-[#183B63]">{city}</h2>
+          <p className="mt-1 text-sm font-semibold text-[#6D7B8A]">
             {dayItems.length} 個行程 · 完成 {completedCount} 個
           </p>
         </div>
@@ -851,20 +849,27 @@ function DailySummaryCard({
         <WeatherMini city={weatherCity} date={selectedDate} />
       </div>
 
+      <CityIllustrationCard city={city} />
+
       <div className="mt-4 grid grid-cols-3 gap-2">
-        <MiniInfo label="行程" value={`${dayItems.length} 個`} />
-        <MiniInfo label="進度" value={`${progress}%`} />
-        <MiniInfo label="主幣別" value={data.trip.mainCurrency} />
+        <MiniInfo label="行程" value={`${dayItems.length} 個`} color={cityTheme.soft} />
+        <MiniInfo label="進度" value={`${progress}%`} color={cityTheme.soft} />
+        <MiniInfo label="主幣別" value={data.trip.mainCurrency} color={cityTheme.soft} />
       </div>
 
-      <div className="mt-4 h-2 rounded-full bg-slate-100">
-        <div className="h-2 rounded-full bg-[#B85C38]" style={{ width: `${progress}%` }} />
+      <div className="mt-4 h-2 rounded-full bg-[#E8DED0]">
+        <div
+          className="h-2 rounded-full"
+          style={{ width: `${progress}%`, backgroundColor: cityTheme.accent }}
+        />
       </div>
 
       {nextItem && (
-        <div className="mt-4 rounded-2xl bg-[#F7EFE5] p-4">
-          <p className="text-xs font-black text-[#B85C38]">下一個行程</p>
-          <p className="mt-1 text-sm font-black text-[#12355B]">
+        <div className="mt-4 rounded-2xl p-4" style={{ backgroundColor: cityTheme.soft }}>
+          <p className="text-xs font-black" style={{ color: cityTheme.accent }}>
+            下一個行程
+          </p>
+          <p className="mt-1 text-sm font-black text-[#183B63]">
             {getItemTime(nextItem)} · {nextItem.title}
           </p>
         </div>
@@ -878,15 +883,49 @@ function DailySummaryCard({
   );
 }
 
+function CityIllustrationCard({ city }: { city: string }) {
+  const theme = getThemeByCity(city);
+
+  return (
+    <div
+      className="mt-4 overflow-hidden rounded-[1.5rem] border border-[#E8DED0]"
+      style={{
+        background: `linear-gradient(180deg, ${theme.soft} 0%, #FFFDF8 100%)`
+      }}
+    >
+      <div className="flex items-center justify-between px-4 pt-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: theme.accent }}>
+            Landmark
+          </p>
+          <p className="text-sm font-semibold text-[#6D7B8A]">{theme.badge}</p>
+        </div>
+
+        <div
+          className="grid h-10 w-10 place-items-center rounded-full text-xl"
+          style={{ backgroundColor: "#FFFDF8", color: theme.accent }}
+        >
+          {theme.landmark}
+        </div>
+      </div>
+
+      <div className="relative h-28 px-4 pb-4 pt-2">
+        <div className="absolute inset-x-4 bottom-0 h-8 rounded-t-[2rem] bg-[#DCE8EF]/60" />
+        <div className="absolute left-6 bottom-6 text-6xl opacity-90">{theme.landmark}</div>
+        <div className="absolute left-24 bottom-7 text-5xl opacity-80">🏛</div>
+        <div className="absolute left-44 bottom-6 text-4xl opacity-80">⛪</div>
+        <div className="absolute right-8 top-5 text-xl opacity-70">☁️ ✨</div>
+      </div>
+    </div>
+  );
+}
+
 function LocalTimeMini({ city }: { city: string }) {
-  const [local, setLocal] = useState<LocalTimeState>({
-    label: cityCoords[city]?.label || city,
-    time: "--:--"
-  });
+  const [time, setTime] = useState("--:--");
+  const label = cityCoords[city]?.label || city;
 
   useEffect(() => {
     const timezone = cityCoords[city]?.timezone || "Europe/Vienna";
-    const label = cityCoords[city]?.label || city;
 
     function tick() {
       const formatter = new Intl.DateTimeFormat("zh-HK", {
@@ -896,33 +935,29 @@ function LocalTimeMini({ city }: { city: string }) {
         timeZone: timezone
       });
 
-      setLocal({
-        label,
-        time: formatter.format(new Date())
-      });
+      setTime(formatter.format(new Date()));
     }
 
     tick();
     const timer = window.setInterval(tick, 60000);
-
     return () => window.clearInterval(timer);
   }, [city]);
 
   return (
-    <div className="rounded-2xl bg-white p-3 shadow-sm">
-      <p className="text-xs font-black text-slate-400">當地時間</p>
-      <p className="mt-1 text-lg font-black text-[#12355B]">{local.time}</p>
-      <p className="text-xs text-slate-500">{local.label}</p>
+    <div className="rounded-2xl border border-[#E8DED0] bg-[#FFFDF8] p-3 shadow-sm">
+      <p className="text-xs font-black text-[#6D7B8A]">當地時間</p>
+      <p className="mt-1 text-lg font-black text-[#183B63]">{time}</p>
+      <p className="text-xs text-[#6D7B8A]">{label}</p>
     </div>
   );
 }
 
 function ExchangeMini() {
   return (
-    <div className="rounded-2xl bg-white p-3 shadow-sm">
-      <p className="text-xs font-black text-slate-400">匯率參考</p>
-      <p className="mt-1 text-lg font-black text-[#12355B]">€1 ≈ HK$8.5</p>
-      <p className="text-xs text-slate-500">手動參考值</p>
+    <div className="rounded-2xl border border-[#E8DED0] bg-[#FFFDF8] p-3 shadow-sm">
+      <p className="text-xs font-black text-[#6D7B8A]">匯率參考</p>
+      <p className="mt-1 text-lg font-black text-[#183B63]">€1 ≈ HK$8.5</p>
+      <p className="text-xs text-[#6D7B8A]">手動參考值</p>
     </div>
   );
 }
@@ -946,18 +981,19 @@ function ChecklistPanel({
   }
 
   if (!checklist.length) {
-    return <EmptyCard icon="✅" title="未有行前清單" text="你可以在 seed data 加入 checklist。" />;
+    return (
+      <EmptyCard icon="🧳" title="未有行前清單" text="可以在 seed data 加入 checklist。" />
+    );
   }
 
   return (
-    <section className="rounded-[2rem] bg-white p-5 shadow-xl">
+    <section className="rounded-[2rem] border border-[#E8DED0] bg-[#FFFDF8] p-5 shadow-[0_12px_30px_rgba(24,59,99,0.08)]">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <p className="text-sm font-bold text-[#B85C38]">Before Trip</p>
-          <h2 className="text-2xl font-black text-[#12355B]">行前清單</h2>
+          <p className="text-sm font-bold text-[#C86A45]">Before Trip</p>
+          <h2 className="text-2xl font-black text-[#183B63]">行前清單</h2>
         </div>
-
-        <p className="rounded-full bg-[#F7EFE5] px-3 py-1 text-xs font-black text-[#12355B]">
+        <p className="rounded-full bg-[#FAF6EF] px-3 py-1 text-xs font-black text-[#183B63]">
           {checklist.filter(item => item.completed).length}/{checklist.length}
         </p>
       </div>
@@ -967,24 +1003,26 @@ function ChecklistPanel({
           <button
             key={item.id}
             onClick={() => toggle(item.id)}
-            className="flex w-full items-start gap-3 rounded-2xl bg-slate-50 p-4 text-left"
+            className="flex w-full items-start gap-3 rounded-2xl border border-[#E8DED0] bg-[#FAF6EF] p-4 text-left"
           >
             <span
               className={`mt-1 grid h-6 w-6 shrink-0 place-items-center rounded-full border ${
                 item.completed
-                  ? "border-emerald-500 bg-emerald-500 text-white"
-                  : "border-slate-300 bg-white"
+                  ? "border-[#7A9A6D] bg-[#7A9A6D] text-white"
+                  : "border-[#CFC5B7] bg-[#FFFDF8]"
               }`}
             >
               {item.completed ? "✓" : ""}
             </span>
 
             <span>
-              <span className="block text-sm font-black text-[#12355B]">{item.title}</span>
-              <span className="mt-1 block text-xs font-semibold text-[#B85C38]">
+              <span className="block text-sm font-black text-[#183B63]">{item.title}</span>
+              <span className="mt-1 block text-xs font-semibold text-[#C86A45]">
                 {checklistCategoryLabel[item.category]}
               </span>
-              {item.notes && <span className="mt-1 block text-xs text-slate-500">{item.notes}</span>}
+              {item.notes && (
+                <span className="mt-1 block text-xs text-[#6D7B8A]">{item.notes}</span>
+              )}
             </span>
           </button>
         ))}
@@ -1005,7 +1043,7 @@ function WeatherMini({ city, date }: { city: string; date: string }) {
     async function loadWeather() {
       const coords = cityCoords[city];
 
-      if (!coords) {
+      if (!coords || date === "pretrip") {
         setWeather({ loading: false, text: "暫無預報" });
         return;
       }
@@ -1020,15 +1058,11 @@ function WeatherMini({ city, date }: { city: string; date: string }) {
         );
 
         if (diffDays < 0 || diffDays > 16) {
-          setWeather({
-            loading: false,
-            text: "暫無預報"
-          });
+          setWeather({ loading: false, text: "暫無預報" });
           return;
         }
 
         const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto&start_date=${date}&end_date=${date}`;
-
         const response = await fetch(url);
         const json = await response.json();
 
@@ -1046,12 +1080,7 @@ function WeatherMini({ city, date }: { city: string; date: string }) {
           text: weatherText(code)
         });
       } catch {
-        if (!cancelled) {
-          setWeather({
-            loading: false,
-            text: "暫無預報"
-          });
-        }
+        if (!cancelled) setWeather({ loading: false, text: "暫無預報" });
       }
     }
 
@@ -1065,7 +1094,7 @@ function WeatherMini({ city, date }: { city: string; date: string }) {
   return (
     <div className="text-right">
       <p className="text-3xl">{getWeatherIcon(weather.code)}</p>
-      <p className="text-sm font-bold text-slate-500">
+      <p className="text-sm font-bold text-[#6D7B8A]">
         {weather.loading
           ? "讀取天氣中"
           : weather.max !== undefined && weather.min !== undefined
@@ -1090,8 +1119,10 @@ function DaySelector({
       <div className="flex gap-3 pb-1">
         <button
           onClick={() => setSelectedDate("pretrip")}
-          className={`min-w-20 rounded-3xl p-4 text-center shadow-lg transition ${
-            selectedDate === "pretrip" ? "bg-[#12355B] text-white" : "bg-white text-slate-600"
+          className={`min-w-20 rounded-3xl p-4 text-center shadow-[0_8px_20px_rgba(24,59,99,0.08)] transition ${
+            selectedDate === "pretrip"
+              ? "bg-[#183B63] text-white"
+              : "border border-[#E8DED0] bg-[#FFFDF8] text-[#183B63]"
           }`}
         >
           <p className="text-xs font-bold opacity-70">行前</p>
@@ -1105,8 +1136,10 @@ function DaySelector({
             <button
               key={date}
               onClick={() => setSelectedDate(date)}
-              className={`min-w-20 rounded-3xl p-4 text-center shadow-lg transition ${
-                active ? "bg-[#12355B] text-white" : "bg-white text-slate-600"
+              className={`min-w-20 rounded-3xl p-4 text-center shadow-[0_8px_20px_rgba(24,59,99,0.08)] transition ${
+                active
+                  ? "bg-[#183B63] text-white"
+                  : "border border-[#E8DED0] bg-[#FFFDF8] text-[#4F5F70]"
               }`}
             >
               <p className="text-xs font-bold opacity-70">Day {index + 1}</p>
@@ -1119,11 +1152,11 @@ function DaySelector({
   );
 }
 
-function MiniInfo({ label, value }: { label: string; value: string }) {
+function MiniInfo({ label, value, color = "#FAF6EF" }: { label: string; value: string; color?: string }) {
   return (
-    <div className="rounded-2xl bg-[#F7EFE5] p-3">
-      <p className="text-xs font-bold text-slate-500">{label}</p>
-      <p className="mt-1 text-sm font-black text-[#12355B]">{value}</p>
+    <div className="rounded-2xl p-3" style={{ backgroundColor: color }}>
+      <p className="text-xs font-bold text-[#6D7B8A]">{label}</p>
+      <p className="mt-1 text-sm font-black text-[#183B63]">{value}</p>
     </div>
   );
 }
@@ -1151,7 +1184,7 @@ function TimelineCard({
 }) {
   const type = getItemType(item);
 
-  if (isTransportType(type)) {
+  if (type.label === "航班" || type.label === "火車" || type.label === "巴士") {
     return (
       <TransportTicketCard
         item={item}
@@ -1171,20 +1204,20 @@ function TimelineCard({
   const itemTime = getItemTime(item);
 
   return (
-    <article className="relative overflow-hidden rounded-[2rem] bg-white p-5 shadow-xl">
+    <article className="relative overflow-hidden rounded-[2rem] border border-[#E8DED0] bg-[#FFFDF8] p-5 shadow-[0_12px_30px_rgba(24,59,99,0.08)]">
       <div className="flex gap-4">
         <div className="flex flex-col items-center">
-          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#EAF2F4] text-2xl">
+          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#F4EEE4] text-2xl">
             {type.icon}
           </div>
-          <div className="mt-2 h-full w-px bg-slate-200" />
+          <div className="mt-2 h-full w-px bg-[#E8DED0]" />
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-black text-[#B85C38]">
+                <p className="text-sm font-black text-[#C86A45]">
                   {itemTime} · {timeBlockLabel[item.timeBlock]}
                 </p>
                 <span className={`rounded-full px-2 py-1 text-[11px] font-black ${type.color}`}>
@@ -1192,7 +1225,7 @@ function TimelineCard({
                 </span>
               </div>
 
-              <h3 className="mt-1 text-xl font-black text-[#12355B]">{item.title}</h3>
+              <h3 className="mt-1 text-xl font-black text-[#183B63]">{item.title}</h3>
             </div>
 
             <button
@@ -1201,24 +1234,28 @@ function TimelineCard({
               className={`rounded-full px-3 py-1 text-xs font-black ${
                 item.completed
                   ? "bg-emerald-100 text-emerald-700"
-                  : "bg-[#F7EFE5] text-slate-500"
+                  : "bg-[#FAF6EF] text-[#6D7B8A]"
               } ${isAuto ? "opacity-60" : ""}`}
             >
               {isAuto ? "自動" : item.completed ? "完成" : "未完成"}
             </button>
           </div>
 
-          <p className="mt-2 text-sm font-semibold text-slate-500">📍 {item.city || "未設定城市"}</p>
+          <p className="mt-2 text-sm font-semibold text-[#6D7B8A]">
+            📍 {item.city || "未設定城市"}
+          </p>
 
-          {item.address && <p className="mt-1 text-sm text-slate-500">{item.address}</p>}
+          {item.address && (
+            <p className="mt-1 text-sm text-[#6D7B8A]">{item.address}</p>
+          )}
 
           {item.notes && (
-            <div className="mt-3 rounded-2xl bg-slate-50 p-3 text-sm text-slate-600">
+            <div className="mt-3 rounded-2xl bg-[#FAF6EF] p-3 text-sm text-[#4F5F70]">
               ✍️ {item.notes}
             </div>
           )}
 
-          <ActionButtons
+          <TimelineActions
             item={item}
             isAuto={isAuto}
             canMoveUp={canMoveUp}
@@ -1228,7 +1265,7 @@ function TimelineCard({
             onEdit={onEdit}
             onMoveUp={onMoveUp}
             onMoveDown={onMoveDown}
-            dark={false}
+            light={false}
           />
         </div>
       </div>
@@ -1249,7 +1286,7 @@ function TransportTicketCard({
   onMoveDown
 }: {
   item: TimedItineraryItem;
-  type: ItemType;
+  type: { label: string; icon: string; color: string };
   isAuto: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
@@ -1260,7 +1297,12 @@ function TransportTicketCard({
   onMoveDown: () => void;
 }) {
   const itemTime = getItemTime(item);
-  const { fromCity, toCity } = getRouteParts(item);
+  const cityParts = item.city
+    ? item.city.split("/").map(part => part.trim()).filter(Boolean)
+    : [];
+
+  const fromCity = cityParts[0] || "FROM";
+  const toCity = cityParts[1] || "TO";
   const fromCode = getCityCode(fromCity);
   const toCode = getCityCode(toCity);
 
@@ -1268,69 +1310,58 @@ function TransportTicketCard({
     type.label === "航班"
       ? "from-blue-500 via-blue-600 to-indigo-700"
       : type.label === "火車"
-        ? "from-indigo-500 via-indigo-600 to-blue-700"
+        ? "from-[#597BAA] via-[#416B9F] to-[#183B63]"
         : "from-cyan-500 via-sky-600 to-blue-700";
 
-  const ticketLabel = type.label === "航班" ? "FLIGHT" : type.label === "火車" ? "TRAIN" : "BUS";
-
   return (
-    <article
-      className={`overflow-hidden rounded-[2rem] bg-gradient-to-br ${gradientClass} p-5 text-white shadow-2xl`}
-    >
+    <article className={`overflow-hidden rounded-[2rem] bg-gradient-to-br ${gradientClass} p-5 text-white shadow-[0_18px_36px_rgba(24,59,99,0.18)]`}>
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="rounded-xl bg-white/15 px-3 py-1 text-xs font-black tracking-[0.18em] backdrop-blur">
-            {ticketLabel}
-          </span>
-          <span className="text-2xl font-black tracking-wider">{itemTime}</span>
+        <div className="rounded-xl bg-white/15 px-3 py-1 text-xs font-black tracking-[0.35em] backdrop-blur">
+          {type.label === "航班" ? "FLIGHT" : type.label === "火車" ? "TRAIN" : "BUS"}
         </div>
 
-        {!isAuto && (
-          <button
-            onClick={onEdit}
-            className="rounded-full bg-white/15 px-3 py-2 text-sm font-black backdrop-blur"
-          >
-            ✏️
-          </button>
-        )}
+        <button
+          onClick={onEdit}
+          disabled={isAuto}
+          className="rounded-full bg-white/10 px-3 py-2 text-sm font-black backdrop-blur disabled:opacity-40"
+        >
+          ✏️
+        </button>
+      </div>
+
+      <div className="mt-4 flex items-center justify-between">
+        <div className="text-4xl font-black tracking-widest">{itemTime}</div>
+        <div className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">
+          {item.completed ? "已完成" : "未完成"}
+        </div>
       </div>
 
       <div className="mt-6 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
         <div>
-          <p className="text-xs font-bold tracking-[0.25em] text-white/65">FROM</p>
-          <p className="mt-2 text-4xl font-black tracking-[0.16em]">{fromCode}</p>
-          <p className="mt-1 text-xs font-semibold text-white/75">{fromCity}</p>
+          <p className="text-xs font-bold tracking-[0.3em] text-white/70">FROM</p>
+          <p className="mt-1 text-4xl font-black tracking-[0.18em]">{fromCode}</p>
+          <p className="mt-1 truncate text-sm text-white/80">{fromCity}</p>
         </div>
 
-        <div className="flex min-w-24 flex-col items-center">
+        <div className="flex flex-col items-center">
           <div className="text-4xl">{type.icon}</div>
-          <div className="mt-3 h-px w-24 border-t-2 border-dashed border-white/40" />
-          <p className="mt-2 max-w-28 truncate text-center text-xs text-white/70">
-            {cleanRouteName(item.title)}
-          </p>
+          <div className="mt-2 h-px w-20 border-t-2 border-dashed border-white/45" />
+          <p className="mt-2 max-w-28 truncate text-xs text-white/70">{item.title}</p>
         </div>
 
         <div className="text-right">
-          <p className="text-xs font-bold tracking-[0.25em] text-white/65">TO</p>
-          <p className="mt-2 text-4xl font-black tracking-[0.16em]">{toCode}</p>
-          <p className="mt-1 text-xs font-semibold text-white/75">{toCity}</p>
+          <p className="text-xs font-bold tracking-[0.3em] text-white/70">TO</p>
+          <p className="mt-1 text-4xl font-black tracking-[0.18em]">{toCode}</p>
+          <p className="mt-1 truncate text-sm text-white/80">{toCity}</p>
         </div>
       </div>
 
-      <div className="mt-6 border-t border-white/15 pt-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="text-lg font-black leading-snug">{item.title}</h3>
-            {item.notes && <p className="mt-2 text-sm leading-relaxed text-white/85">{item.notes}</p>}
-          </div>
-
-          <span className="shrink-0 rounded-xl bg-white px-3 py-2 text-xs font-black text-[#12355B]">
-            {item.completed ? "已完成" : "未完成"}
-          </span>
-        </div>
+      <div className="mt-6 rounded-2xl bg-white/10 p-4 backdrop-blur">
+        <p className="text-lg font-black">{item.title}</p>
+        {item.notes && <p className="mt-2 text-sm leading-relaxed text-white/85">{item.notes}</p>}
       </div>
 
-      <ActionButtons
+      <TimelineActions
         item={item}
         isAuto={isAuto}
         canMoveUp={canMoveUp}
@@ -1340,13 +1371,13 @@ function TransportTicketCard({
         onEdit={onEdit}
         onMoveUp={onMoveUp}
         onMoveDown={onMoveDown}
-        dark
+        light
       />
     </article>
   );
 }
 
-function ActionButtons({
+function TimelineActions({
   item,
   isAuto,
   canMoveUp,
@@ -1356,7 +1387,7 @@ function ActionButtons({
   onEdit,
   onMoveUp,
   onMoveDown,
-  dark
+  light
 }: {
   item: TimedItineraryItem;
   isAuto: boolean;
@@ -1367,21 +1398,15 @@ function ActionButtons({
   onEdit: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
-  dark: boolean;
+  light: boolean;
 }) {
-  const base = dark
-    ? "rounded-full bg-white/15 px-3 py-1 text-xs font-black text-white backdrop-blur disabled:opacity-40"
-    : "rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-[#12355B] disabled:opacity-30";
+  const pill = light
+    ? "bg-white/15 text-white disabled:opacity-40"
+    : "bg-[#FAF6EF] text-[#183B63] disabled:opacity-30";
 
   return (
     <div className="mt-4 flex flex-wrap gap-2">
-      <span
-        className={
-          dark
-            ? "rounded-full bg-white px-3 py-1 text-xs font-black text-slate-900"
-            : "rounded-full bg-[#D6A84F]/20 px-3 py-1 text-xs font-black text-[#8A650C]"
-        }
-      >
+      <span className={light ? "rounded-full bg-white px-3 py-1 text-xs font-black text-slate-900" : "rounded-full bg-[#D6A84F]/20 px-3 py-1 text-xs font-black text-[#8A650C]"}>
         {money(item.estimatedCost, item.currency)}
       </span>
 
@@ -1390,7 +1415,7 @@ function ActionButtons({
           href={item.googleMapsLink}
           target="_blank"
           rel="noreferrer"
-          className={base}
+          className={light ? "rounded-full bg-white/15 px-3 py-1 text-xs font-black text-white" : "rounded-full bg-[#183B63] px-3 py-1 text-xs font-black text-white"}
         >
           開啟地圖
         </a>
@@ -1398,32 +1423,23 @@ function ActionButtons({
 
       {!isAuto && (
         <>
-          <button onClick={onToggle} className={base}>
+          <button onClick={onToggle} className={`rounded-full px-3 py-1 text-xs font-black ${pill}`}>
             {item.completed ? "取消完成" : "標記完成"}
           </button>
 
-          {!dark && (
-            <button onClick={onEdit} className={base}>
-              編輯
-            </button>
-          )}
+          <button onClick={onEdit} className={`rounded-full px-3 py-1 text-xs font-black ${pill}`}>
+            編輯
+          </button>
 
-          <button onClick={onMoveUp} disabled={!canMoveUp} className={base}>
+          <button onClick={onMoveUp} disabled={!canMoveUp} className={`rounded-full px-3 py-1 text-xs font-black ${pill}`}>
             上移
           </button>
 
-          <button onClick={onMoveDown} disabled={!canMoveDown} className={base}>
+          <button onClick={onMoveDown} disabled={!canMoveDown} className={`rounded-full px-3 py-1 text-xs font-black ${pill}`}>
             下移
           </button>
 
-          <button
-            onClick={onDelete}
-            className={
-              dark
-                ? "rounded-full bg-rose-200 px-3 py-1 text-xs font-black text-rose-700"
-                : "rounded-full bg-rose-50 px-3 py-1 text-xs font-black text-rose-600"
-            }
-          >
+          <button onClick={onDelete} className="rounded-full bg-rose-100 px-3 py-1 text-xs font-black text-rose-700">
             刪除
           </button>
         </>
@@ -1455,71 +1471,50 @@ function MapPage({ data, selectedDate }: { data: TripDataV2; selectedDate: strin
 
   const places = [...itineraryPlaces, ...accommodationPlaces];
 
-  const todayPlaces =
-    selectedDate === "pretrip"
-      ? []
-      : data.itinerary
-          .filter(item => item.date === selectedDate && item.address)
-          .map(item => ({
-            id: item.id,
-            title: item.title,
-            city: item.city,
-            address: item.address,
-            googleMapsLink: item.googleMapsLink
-          }));
+  const todayPlaces = data.itinerary
+    .filter(item => item.date === selectedDate && item.address)
+    .map(item => ({
+      id: item.id,
+      title: item.title,
+      city: item.city,
+      address: item.address,
+      googleMapsLink: item.googleMapsLink
+    }));
 
   return (
     <div className="space-y-5">
-      <section className="overflow-hidden rounded-[2.25rem] bg-[#12355B] text-white shadow-2xl">
+      <section className="overflow-hidden rounded-[2.25rem] border border-[#E8DED0] bg-[#FFFDF8] text-[#183B63] shadow-[0_12px_30px_rgba(24,59,99,0.08)]">
         <div className="relative h-56 p-6">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(214,168,79,0.45),transparent_30%),radial-gradient(circle_at_80%_10%,rgba(255,255,255,0.18),transparent_28%),linear-gradient(135deg,#12355B,#0B1F36)]" />
-
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(211,146,50,0.25),transparent_30%),radial-gradient(circle_at_80%_10%,rgba(122,154,109,0.25),transparent_28%),linear-gradient(135deg,#FFFDF8,#F4EEE4)]" />
           <div className="relative z-10">
-            <p className="text-sm font-bold text-white/70">Map Center</p>
+            <p className="text-sm font-bold text-[#C86A45]">Map Center</p>
             <h2 className="mt-1 text-3xl font-black">中歐地圖中心</h2>
-            <p className="mt-3 text-sm leading-relaxed text-white/75">
+            <p className="mt-3 text-sm leading-relaxed text-[#6D7B8A]">
               今日景點、住宿位置、交通站點同 Google Maps 導航。
             </p>
           </div>
-
           <div className="absolute bottom-5 right-5 text-6xl opacity-80">🗺</div>
         </div>
       </section>
 
       <section>
-        <h2 className="mb-3 text-2xl font-black text-[#12355B]">今日地點</h2>
+        <h2 className="mb-3 text-2xl font-black text-[#183B63]">今日地點</h2>
         <div className="space-y-3">
           {todayPlaces.length === 0 && (
-            <EmptyCard
-              icon="📍"
-              title="今日未有地址"
-              text="在行程加入地址後，會顯示在這裡。"
-            />
+            <EmptyCard icon="📍" title="今日未有地址" text="在行程加入地址後，會顯示在這裡。" />
           )}
 
           {todayPlaces.map(place => (
-            <PlaceCard
-              key={place.id}
-              title={place.title}
-              city={place.city}
-              address={place.address}
-              link={place.googleMapsLink}
-            />
+            <PlaceCard key={place.id} title={place.title} city={place.city} address={place.address} link={place.googleMapsLink} />
           ))}
         </div>
       </section>
 
       <section>
-        <h2 className="mb-3 text-2xl font-black text-[#12355B]">全部地點</h2>
+        <h2 className="mb-3 text-2xl font-black text-[#183B63]">全部地點</h2>
         <div className="space-y-3">
           {places.slice(0, 30).map(place => (
-            <PlaceCard
-              key={place.id}
-              title={place.title}
-              city={place.city}
-              address={place.address}
-              link={place.googleMapsLink}
-            />
+            <PlaceCard key={place.id} title={place.title} city={place.city} address={place.address} link={place.googleMapsLink} />
           ))}
         </div>
       </section>
@@ -1538,24 +1533,22 @@ function PlaceCard({
   address: string;
   link?: string;
 }) {
-  const fallback = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-    address || title
-  )}`;
+  const fallback = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address || title)}`;
 
   return (
-    <div className="rounded-[1.75rem] bg-white p-4 shadow-lg">
+    <div className="rounded-[1.75rem] border border-[#E8DED0] bg-[#FFFDF8] p-4 shadow-[0_8px_20px_rgba(24,59,99,0.08)]">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-black text-[#B85C38]">{city}</p>
-          <h3 className="mt-1 text-lg font-black text-[#12355B]">{title}</h3>
-          <p className="mt-1 text-sm text-slate-500">{address}</p>
+          <p className="text-xs font-black text-[#C86A45]">{city}</p>
+          <h3 className="mt-1 text-lg font-black text-[#183B63]">{title}</h3>
+          <p className="mt-1 text-sm text-[#6D7B8A]">{address}</p>
         </div>
 
         <a
           href={link || fallback}
           target="_blank"
           rel="noreferrer"
-          className="shrink-0 rounded-full bg-[#12355B] px-3 py-2 text-xs font-black text-white"
+          className="shrink-0 rounded-full bg-[#183B63] px-3 py-2 text-xs font-black text-white"
         >
           導航
         </a>
@@ -1574,11 +1567,9 @@ function BudgetPage({
   onAdd: () => void;
 }) {
   const totalHKD = data.expenses.reduce((sum, x) => sum + toHKD(x.amount, x.currency), 0);
-
   const accommodationHKD = data.expenses
     .filter(x => x.category === "Accommodation")
     .reduce((sum, x) => sum + toHKD(x.amount, x.currency), 0);
-
   const dailyHKD = totalHKD / 14;
 
   const byCategory = expenseCategories.map(category => ({
@@ -1589,25 +1580,19 @@ function BudgetPage({
   }));
 
   function deleteExpense(id: string) {
-    update({
-      ...data,
-      expenses: data.expenses.filter(expense => expense.id !== id)
-    });
+    update({ ...data, expenses: data.expenses.filter(expense => expense.id !== id) });
   }
 
   return (
     <div className="space-y-5">
-      <section className="rounded-[2.25rem] bg-[#12355B] p-6 text-white shadow-2xl">
+      <section className="rounded-[2.25rem] bg-[#183B63] p-6 text-white shadow-[0_12px_30px_rgba(24,59,99,0.18)]">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-bold text-white/70">旅費管理</p>
             <h2 className="mt-1 text-4xl font-black">{money(totalHKD, "HKD")}</h2>
           </div>
 
-          <button
-            onClick={onAdd}
-            className="rounded-full bg-white px-4 py-3 text-sm font-black text-[#12355B]"
-          >
+          <button onClick={onAdd} className="rounded-full bg-white px-4 py-3 text-sm font-black text-[#183B63]">
             ＋記一筆
           </button>
         </div>
@@ -1622,8 +1607,8 @@ function BudgetPage({
         </p>
       </section>
 
-      <section className="rounded-[2rem] bg-white p-5 shadow-xl">
-        <h2 className="text-xl font-black text-[#12355B]">分類支出</h2>
+      <section className="rounded-[2rem] border border-[#E8DED0] bg-[#FFFDF8] p-5 shadow-[0_12px_30px_rgba(24,59,99,0.08)]">
+        <h2 className="text-xl font-black text-[#183B63]">分類支出</h2>
         <div className="mt-4 space-y-4">
           {byCategory.map(row => (
             <div key={row.category}>
@@ -1632,12 +1617,10 @@ function BudgetPage({
                 <span>{money(row.amount, "HKD")}</span>
               </div>
 
-              <div className="mt-2 h-2 rounded-full bg-slate-100">
+              <div className="mt-2 h-2 rounded-full bg-[#E8DED0]">
                 <div
-                  className="h-2 rounded-full bg-[#D6A84F]"
-                  style={{
-                    width: `${totalHKD ? Math.min((row.amount / totalHKD) * 100, 100) : 0}%`
-                  }}
+                  className="h-2 rounded-full bg-[#D39232]"
+                  style={{ width: `${totalHKD ? Math.min((row.amount / totalHKD) * 100, 100) : 0}%` }}
                 />
               </div>
             </div>
@@ -1646,31 +1629,27 @@ function BudgetPage({
       </section>
 
       <section>
-        <h2 className="mb-3 text-2xl font-black text-[#12355B]">支出明細</h2>
+        <h2 className="mb-3 text-2xl font-black text-[#183B63]">支出明細</h2>
         <div className="space-y-3">
           {data.expenses.map(expense => (
-            <div key={expense.id} className="rounded-[1.75rem] bg-white p-4 shadow-lg">
+            <div key={expense.id} className="rounded-[1.75rem] border border-[#E8DED0] bg-[#FFFDF8] p-4 shadow-[0_8px_20px_rgba(24,59,99,0.08)]">
               <div className="flex justify-between gap-3">
                 <div>
-                  <p className="text-xs font-black text-[#B85C38]">
+                  <p className="text-xs font-black text-[#C86A45]">
                     {expense.date} · {categoryLabel[expense.category]}
                   </p>
-                  <h3 className="mt-1 text-lg font-black text-[#12355B]">{expense.title}</h3>
-                  <p className="mt-1 text-sm text-slate-500">
-                    {money(expense.amount, expense.currency)} · 約{" "}
-                    {money(toHKD(expense.amount, expense.currency), "HKD")}
+                  <h3 className="mt-1 text-lg font-black text-[#183B63]">{expense.title}</h3>
+                  <p className="mt-1 text-sm text-[#6D7B8A]">
+                    {money(expense.amount, expense.currency)} · 約 {money(toHKD(expense.amount, expense.currency), "HKD")}
                   </p>
-                  <p className="mt-1 text-sm text-slate-500">
+                  <p className="mt-1 text-sm text-[#6D7B8A]">
                     付款人：{expense.paidBy || "未設定"}
                     {expense.notes ? ` · ${expense.notes}` : ""}
                   </p>
                 </div>
 
                 <div className="text-right">
-                  <button
-                    onClick={() => deleteExpense(expense.id)}
-                    className="text-xs font-bold text-rose-500"
-                  >
+                  <button onClick={() => deleteExpense(expense.id)} className="text-xs font-bold text-rose-500">
                     刪除
                   </button>
                 </div>
@@ -1707,7 +1686,7 @@ function ShoppingPage({
 
   return (
     <div className="space-y-5">
-      <section className="rounded-[2.25rem] bg-gradient-to-br from-[#B85C38] to-[#12355B] p-6 text-white shadow-2xl">
+      <section className="rounded-[2.25rem] bg-gradient-to-br from-[#C86A45] to-[#183B63] p-6 text-white shadow-[0_12px_30px_rgba(24,59,99,0.18)]">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-bold text-white/70">Shopping List</p>
@@ -1717,10 +1696,7 @@ function ShoppingPage({
             </p>
           </div>
 
-          <button
-            onClick={onAdd}
-            className="rounded-full bg-white px-4 py-3 text-sm font-black text-[#12355B]"
-          >
+          <button onClick={onAdd} className="rounded-full bg-white px-4 py-3 text-sm font-black text-[#183B63]">
             ＋新增
           </button>
         </div>
@@ -1728,11 +1704,7 @@ function ShoppingPage({
 
       <div className="grid gap-4">
         {data.wishlist.length === 0 && (
-          <EmptyCard
-            icon="🛍"
-            title="未有購物清單"
-            text="新增你想買的手信、用品或門票。"
-          />
+          <EmptyCard icon="🛍" title="未有購物清單" text="新增你想買的手信、用品或門票。" />
         )}
 
         {data.wishlist.map(item => (
@@ -1745,19 +1717,19 @@ function ShoppingPage({
 
 function ShoppingCard({ item, onDelete }: { item: WishlistItem; onDelete: () => void }) {
   return (
-    <article className="rounded-[2rem] bg-white p-5 shadow-xl">
+    <article className="rounded-[2rem] border border-[#E8DED0] bg-[#FFFDF8] p-5 shadow-[0_12px_30px_rgba(24,59,99,0.08)]">
       <div className="flex gap-4">
-        <div className="grid h-16 w-16 shrink-0 place-items-center rounded-3xl bg-[#F7EFE5] text-3xl">
+        <div className="grid h-16 w-16 shrink-0 place-items-center rounded-3xl bg-[#F4EEE4] text-3xl">
           🛍
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex justify-between gap-3">
             <div>
-              <p className="text-xs font-black text-[#B85C38]">
+              <p className="text-xs font-black text-[#C86A45]">
                 {item.city || "未設定城市"} · {item.priority}
               </p>
-              <h3 className="mt-1 text-xl font-black text-[#12355B]">{item.placeName}</h3>
+              <h3 className="mt-1 text-xl font-black text-[#183B63]">{item.placeName}</h3>
             </div>
 
             <button onClick={onDelete} className="text-sm font-bold text-rose-500">
@@ -1765,13 +1737,13 @@ function ShoppingCard({ item, onDelete }: { item: WishlistItem; onDelete: () => 
             </button>
           </div>
 
-          <p className="mt-2 text-sm text-slate-500">{item.notes || item.address}</p>
+          <p className="mt-2 text-sm text-[#6D7B8A]">{item.notes || item.address}</p>
 
           <div className="mt-3 flex flex-wrap gap-2">
             <span className="rounded-full bg-[#D6A84F]/20 px-3 py-1 text-xs font-black text-[#8A650C]">
               {money(item.estimatedCost, item.currency)}
             </span>
-            <span className="rounded-full bg-[#EAF2F4] px-3 py-1 text-xs font-black text-[#12355B]">
+            <span className="rounded-full bg-[#EEF5EA] px-3 py-1 text-xs font-black text-[#183B63]">
               {item.category}
             </span>
           </div>
@@ -1784,7 +1756,7 @@ function ShoppingCard({ item, onDelete }: { item: WishlistItem; onDelete: () => 
 function InfoPage({ data, update }: { data: TripDataV2; update: (d: TripDataV2) => void }) {
   return (
     <div className="space-y-5">
-      <section className="rounded-[2.25rem] bg-[#12355B] p-6 text-white shadow-2xl">
+      <section className="rounded-[2.25rem] bg-[#183B63] p-6 text-white shadow-[0_12px_30px_rgba(24,59,99,0.18)]">
         <p className="text-sm font-bold text-white/70">Travel Vault</p>
         <h2 className="mt-1 text-3xl font-black">旅行資訊庫</h2>
         <p className="mt-2 text-sm leading-relaxed text-white/75">
@@ -1822,16 +1794,16 @@ function InfoPage({ data, update }: { data: TripDataV2; update: (d: TripDataV2) 
         ))}
       </InfoSection>
 
-      <section className="rounded-[2rem] bg-white p-5 shadow-xl">
-        <h2 className="text-xl font-black text-[#12355B]">資料設定</h2>
-        <p className="mt-2 text-sm text-slate-500">
+      <section className="rounded-[2rem] border border-[#E8DED0] bg-[#FFFDF8] p-5 shadow-[0_12px_30px_rgba(24,59,99,0.08)]">
+        <h2 className="text-xl font-black text-[#183B63]">資料設定</h2>
+        <p className="mt-2 text-sm text-[#6D7B8A]">
           所有資料目前儲存在這部 iPhone 的 localStorage。
         </p>
 
         <div className="mt-4 flex gap-3">
           <button
             onClick={() => update(resetTripData() as TripDataV2)}
-            className="rounded-full bg-[#F7EFE5] px-4 py-3 text-sm font-black text-[#12355B]"
+            className="rounded-full bg-[#FAF6EF] px-4 py-3 text-sm font-black text-[#183B63]"
           >
             重設範例資料
           </button>
@@ -1862,7 +1834,7 @@ function InfoSection({
 }) {
   return (
     <section>
-      <h2 className="mb-3 text-2xl font-black text-[#12355B]">
+      <h2 className="mb-3 text-2xl font-black text-[#183B63]">
         {icon} {title}
       </h2>
       <div className="space-y-3">{children}</div>
@@ -1880,29 +1852,29 @@ function InfoCard({
   text: string;
 }) {
   return (
-    <article className="rounded-[1.75rem] bg-white p-4 shadow-lg">
-      <p className="text-xs font-black text-[#B85C38]">{subtitle}</p>
-      <h3 className="mt-1 text-lg font-black text-[#12355B]">{title}</h3>
-      <p className="mt-1 text-sm text-slate-500">{text}</p>
+    <article className="rounded-[1.75rem] border border-[#E8DED0] bg-[#FFFDF8] p-4 shadow-[0_8px_20px_rgba(24,59,99,0.08)]">
+      <p className="text-xs font-black text-[#C86A45]">{subtitle}</p>
+      <h3 className="mt-1 text-lg font-black text-[#183B63]">{title}</h3>
+      <p className="mt-1 text-sm text-[#6D7B8A]">{text}</p>
     </article>
   );
 }
 
 function DocumentCard({ doc }: { doc: DocumentItem }) {
   return (
-    <article className="rounded-[1.75rem] bg-white p-4 shadow-lg">
-      <p className="text-xs font-black text-[#B85C38]">
+    <article className="rounded-[1.75rem] border border-[#E8DED0] bg-[#FFFDF8] p-4 shadow-[0_8px_20px_rgba(24,59,99,0.08)]">
+      <p className="text-xs font-black text-[#C86A45]">
         {doc.date} · {doc.relatedCity}
       </p>
-      <h3 className="mt-1 text-lg font-black text-[#12355B]">{doc.title}</h3>
-      <p className="mt-1 text-sm text-slate-500">{doc.notes}</p>
+      <h3 className="mt-1 text-lg font-black text-[#183B63]">{doc.title}</h3>
+      <p className="mt-1 text-sm text-[#6D7B8A]">{doc.notes}</p>
 
       {doc.link && (
         <a
           href={doc.link}
           target="_blank"
           rel="noreferrer"
-          className="mt-3 inline-block rounded-full bg-[#12355B] px-3 py-2 text-xs font-black text-white"
+          className="mt-3 inline-block rounded-full bg-[#183B63] px-3 py-2 text-xs font-black text-white"
         >
           開啟連結
         </a>
@@ -1920,7 +1892,7 @@ function BottomNav({
 }) {
   return (
     <nav className="fixed bottom-[calc(env(safe-area-inset-bottom)+0.25rem)] left-4 right-4 z-50 mx-auto max-w-md">
-      <div className="grid grid-cols-5 gap-1 rounded-[2rem] border border-white/70 bg-white/85 p-2 shadow-2xl backdrop-blur-xl">
+      <div className="grid grid-cols-5 gap-1 rounded-[2rem] border border-[#E8DED0] bg-[#FFFDF8]/90 p-2 shadow-[0_16px_38px_rgba(24,59,99,0.12)] backdrop-blur-xl">
         {tabs.map(tab => {
           const active = tab.key === activeTab;
 
@@ -1930,8 +1902,8 @@ function BottomNav({
               onClick={() => setActiveTab(tab.key)}
               className={`rounded-3xl px-2 py-3 text-center text-xs font-black transition ${
                 active
-                  ? "bg-[#12355B] text-white shadow-lg"
-                  : "text-slate-500 hover:bg-slate-100"
+                  ? "bg-[#183B63] text-white shadow-lg"
+                  : "text-[#6D7B8A] hover:bg-[#FAF6EF]"
               }`}
             >
               <div className="text-lg">{tab.icon}</div>
@@ -1954,10 +1926,10 @@ function EmptyCard({
   text: string;
 }) {
   return (
-    <div className="rounded-[2rem] bg-white p-6 text-center shadow-xl">
+    <div className="rounded-[2rem] border border-[#E8DED0] bg-[#FFFDF8] p-6 text-center shadow-[0_12px_30px_rgba(24,59,99,0.08)]">
       <div className="text-4xl">{icon}</div>
-      <h3 className="mt-3 text-xl font-black text-[#12355B]">{title}</h3>
-      <p className="mt-2 text-sm text-slate-500">{text}</p>
+      <h3 className="mt-3 text-xl font-black text-[#183B63]">{title}</h3>
+      <p className="mt-2 text-sm text-[#6D7B8A]">{text}</p>
     </div>
   );
 }
@@ -1977,8 +1949,7 @@ function ItineraryModal({
   onClose: () => void;
   onSave: (item: TimedItineraryItem) => void;
 }) {
-  const initialTime =
-    initialItem?.time || fallbackTimeFromBlock(initialItem?.timeBlock || "Morning");
+  const initialTime = initialItem?.time || fallbackTimeFromBlock(initialItem?.timeBlock || "Morning");
 
   const [title, setTitle] = useState(initialItem?.title || "");
   const [city, setCity] = useState(initialItem?.city || euroCity(selectedDate, data));
@@ -2174,13 +2145,13 @@ function Modal({
 }) {
   return (
     <div className="fixed inset-0 z-[60] flex items-end bg-black/40 p-4 backdrop-blur-sm">
-      <div className="mx-auto max-h-[88vh] w-full max-w-md overflow-y-auto rounded-[2rem] bg-white p-5 shadow-2xl">
+      <div className="mx-auto max-h-[88vh] w-full max-w-md overflow-y-auto rounded-[2rem] border border-[#E8DED0] bg-[#FFFDF8] p-5 shadow-2xl">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-2xl font-black text-[#12355B]">{title}</h2>
+          <h2 className="text-2xl font-black text-[#183B63]">{title}</h2>
 
           <button
             onClick={onClose}
-            className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-xl font-black"
+            className="grid h-10 w-10 place-items-center rounded-full bg-[#FAF6EF] text-xl font-black"
           >
             ×
           </button>
@@ -2205,13 +2176,13 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-sm font-black text-slate-600">{label}</span>
+      <span className="text-sm font-black text-[#6D7B8A]">{label}</span>
 
       <input
         type={type}
         value={value}
         onChange={event => setValue(event.target.value)}
-        className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-base font-semibold outline-none focus:border-[#12355B]"
+        className="mt-1 w-full rounded-2xl border border-[#E8DED0] bg-[#FAF6EF] px-4 py-3 text-base font-semibold text-[#183B63] outline-none focus:border-[#183B63]"
       />
     </label>
   );
@@ -2228,12 +2199,12 @@ function TextArea({
 }) {
   return (
     <label className="block">
-      <span className="text-sm font-black text-slate-600">{label}</span>
+      <span className="text-sm font-black text-[#6D7B8A]">{label}</span>
 
       <textarea
         value={value}
         onChange={event => setValue(event.target.value)}
-        className="mt-1 min-h-24 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-base font-semibold outline-none focus:border-[#12355B]"
+        className="mt-1 min-h-24 w-full rounded-2xl border border-[#E8DED0] bg-[#FAF6EF] px-4 py-3 text-base font-semibold text-[#183B63] outline-none focus:border-[#183B63]"
       />
     </label>
   );
@@ -2254,12 +2225,12 @@ function Select({
 }) {
   return (
     <label className="block">
-      <span className="text-sm font-black text-slate-600">{label}</span>
+      <span className="text-sm font-black text-[#6D7B8A]">{label}</span>
 
       <select
         value={value}
         onChange={event => setValue(event.target.value)}
-        className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-base font-semibold outline-none focus:border-[#12355B]"
+        className="mt-1 w-full rounded-2xl border border-[#E8DED0] bg-[#FAF6EF] px-4 py-3 text-base font-semibold text-[#183B63] outline-none focus:border-[#183B63]"
       >
         {options.map(option => (
           <option key={option} value={option}>
@@ -2281,7 +2252,7 @@ function PrimaryButton({
   return (
     <button
       onClick={onClick}
-      className="w-full rounded-2xl bg-[#12355B] px-5 py-4 text-base font-black text-white shadow-lg"
+      className="w-full rounded-2xl bg-[#183B63] px-5 py-4 text-base font-black text-white shadow-lg"
     >
       {children}
     </button>
