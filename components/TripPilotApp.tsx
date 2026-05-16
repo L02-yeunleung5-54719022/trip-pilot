@@ -13,15 +13,37 @@ import type {
 } from "@/lib/types";
 
 type MainTab = "trip" | "map" | "budget" | "shopping" | "info";
-type TimedItineraryItem = ItineraryItem & { time?: string };
+
+type ChecklistCategory = "Documents" | "Packing" | "Money" | "Transport" | "Other";
+
+type ChecklistItem = {
+  id: string;
+  title: string;
+  category: ChecklistCategory;
+  completed: boolean;
+  notes: string;
+};
+
+type TripDataV2 = TripData & {
+  checklist?: ChecklistItem[];
+};
+
+type TimedItineraryItem = ItineraryItem & {
+  time?: string;
+  order?: number;
+};
 
 type WeatherState = {
   loading: boolean;
-  temp?: number;
   max?: number;
   min?: number;
   code?: number;
   text: string;
+};
+
+type LocalTimeState = {
+  label: string;
+  time: string;
 };
 
 const tabs: { key: MainTab; label: string; icon: string }[] = [
@@ -39,25 +61,6 @@ const timeBlockLabel: Record<TimeBlock, string> = {
   Afternoon: "下午",
   Evening: "晚上"
 };
-
-function fallbackTimeFromBlock(block: TimeBlock) {
-  if (block === "Morning") return "09:00";
-  if (block === "Afternoon") return "14:00";
-  return "19:00";
-}
-
-function timeBlockFromTime(time: string): TimeBlock {
-  const hour = Number(time.split(":")[0]);
-
-  if (Number.isNaN(hour)) return "Morning";
-  if (hour < 12) return "Morning";
-  if (hour < 18) return "Afternoon";
-  return "Evening";
-}
-
-function getItemTime(item: TimedItineraryItem) {
-  return item.time || fallbackTimeFromBlock(item.timeBlock);
-}
 
 const expenseCategories: ExpenseCategory[] = [
   "Accommodation",
@@ -77,13 +80,51 @@ const categoryLabel: Record<string, string> = {
   Other: "其他"
 };
 
-const cityCoords: Record<string, { lat: number; lon: number; label: string }> = {
-  Vienna: { lat: 48.2082, lon: 16.3738, label: "維也納" },
-  Prague: { lat: 50.0755, lon: 14.4378, label: "布拉格" },
-  Budapest: { lat: 47.4979, lon: 19.0402, label: "布達佩斯" },
-  Bratislava: { lat: 48.1486, lon: 17.1077, label: "Bratislava" },
-  Vancouver: { lat: 49.2827, lon: -123.1207, label: "溫哥華" },
-  Frankfurt: { lat: 50.1109, lon: 8.6821, label: "法蘭克福" }
+const checklistCategoryLabel: Record<ChecklistCategory, string> = {
+  Documents: "文件",
+  Packing: "行李",
+  Money: "金錢",
+  Transport: "交通",
+  Other: "其他"
+};
+
+const cityCoords: Record<string, { lat: number; lon: number; label: string; timezone: string }> = {
+  Vienna: {
+    lat: 48.2082,
+    lon: 16.3738,
+    label: "維也納",
+    timezone: "Europe/Vienna"
+  },
+  Prague: {
+    lat: 50.0755,
+    lon: 14.4378,
+    label: "布拉格",
+    timezone: "Europe/Prague"
+  },
+  Budapest: {
+    lat: 47.4979,
+    lon: 19.0402,
+    label: "布達佩斯",
+    timezone: "Europe/Budapest"
+  },
+  Bratislava: {
+    lat: 48.1486,
+    lon: 17.1077,
+    label: "Bratislava",
+    timezone: "Europe/Bratislava"
+  },
+  Vancouver: {
+    lat: 49.2827,
+    lon: -123.1207,
+    label: "溫哥華",
+    timezone: "America/Vancouver"
+  },
+  Frankfurt: {
+    lat: 50.1109,
+    lon: 8.6821,
+    label: "法蘭克福",
+    timezone: "Europe/Berlin"
+  }
 };
 
 function uid(prefix: string) {
@@ -126,6 +167,25 @@ function getDates(start: string, end: string) {
   return result;
 }
 
+function fallbackTimeFromBlock(block: TimeBlock) {
+  if (block === "Morning") return "09:00";
+  if (block === "Afternoon") return "14:00";
+  return "19:00";
+}
+
+function timeBlockFromTime(time: string): TimeBlock {
+  const hour = Number(time.split(":")[0]);
+
+  if (Number.isNaN(hour)) return "Morning";
+  if (hour < 12) return "Morning";
+  if (hour < 18) return "Afternoon";
+  return "Evening";
+}
+
+function getItemTime(item: TimedItineraryItem) {
+  return item.time || fallbackTimeFromBlock(item.timeBlock);
+}
+
 function getWeatherIcon(code?: number) {
   if (code === undefined) return "🌤";
   if (code === 0) return "☀️";
@@ -149,74 +209,68 @@ function weatherText(code?: number) {
   return "天氣變化";
 }
 
-function getItemIcon(title: string, notes = "") {
-  const text = `${title} ${notes}`.toLowerCase();
+function getItemType(item: TimedItineraryItem) {
+  const text = `${item.title} ${item.notes}`.toLowerCase();
 
   if (
     text.includes("flight") ||
     text.includes("airport") ||
     text.includes("航班") ||
     text.includes("機場") ||
-    text.includes("抵達") ||
-    text.includes("出發")
+    text.includes("起飛") ||
+    text.includes("抵達")
   ) {
-    return "✈️";
+    return { label: "航班", icon: "✈️", color: "bg-blue-50 text-blue-700" };
   }
 
-  if (
-    text.includes("train") ||
-    text.includes("station") ||
-    text.includes("火車") ||
-    text.includes("車站")
-  ) {
-    return "🚆";
+  if (text.includes("train") || text.includes("火車") || text.includes("rail")) {
+    return { label: "火車", icon: "🚆", color: "bg-indigo-50 text-indigo-700" };
   }
 
   if (text.includes("bus") || text.includes("巴士")) {
-    return "🚌";
+    return { label: "巴士", icon: "🚌", color: "bg-cyan-50 text-cyan-700" };
   }
 
   if (
     text.includes("hotel") ||
     text.includes("airbnb") ||
-    text.includes("check") ||
     text.includes("入住") ||
-    text.includes("住宿") ||
-    text.includes("退房")
+    text.includes("退房") ||
+    text.includes("住宿")
   ) {
-    return "🏨";
+    return { label: "住宿", icon: "🏨", color: "bg-amber-50 text-amber-700" };
   }
 
   if (
-    text.includes("breakfast") ||
-    text.includes("lunch") ||
-    text.includes("dinner") ||
-    text.includes("food") ||
     text.includes("食") ||
     text.includes("餐") ||
-    text.includes("咖啡")
+    text.includes("咖啡") ||
+    text.includes("breakfast") ||
+    text.includes("lunch") ||
+    text.includes("dinner")
   ) {
-    return "🍽";
+    return { label: "飲食", icon: "🍽", color: "bg-orange-50 text-orange-700" };
   }
 
   if (
-    text.includes("bath") ||
-    text.includes("museum") ||
     text.includes("old town") ||
     text.includes("老城") ||
-    text.includes("景點")
+    text.includes("museum") ||
+    text.includes("bath") ||
+    text.includes("景點") ||
+    text.includes("溫泉")
   ) {
-    return "🏰";
+    return { label: "景點", icon: "🏰", color: "bg-purple-50 text-purple-700" };
   }
 
   if (text.includes("shopping") || text.includes("購物")) {
-    return "🛍";
+    return { label: "購物", icon: "🛍", color: "bg-pink-50 text-pink-700" };
   }
 
-  return "📍";
+  return { label: "行程", icon: "📍", color: "bg-slate-100 text-slate-700" };
 }
 
-function euroCity(date: string, data: TripData) {
+function euroCity(date: string, data: TripDataV2) {
   const d = parseDateKey(date).getTime();
 
   for (const stay of data.accommodations) {
@@ -249,12 +303,33 @@ function sortItineraryItems(items: TimedItineraryItem[]) {
   return [...items].sort((a, b) => {
     const timeDiff = getItemTime(a).localeCompare(getItemTime(b));
     if (timeDiff !== 0) return timeDiff;
+
+    const orderDiff = (a.order || 0) - (b.order || 0);
+    if (orderDiff !== 0) return orderDiff;
+
     return a.title.localeCompare(b.title);
   });
 }
 
+function exchangeRateToHKD(currency: string) {
+  const rates: Record<string, number> = {
+    HKD: 1,
+    EUR: 8.5,
+    CAD: 5.7,
+    CZK: 0.36,
+    HUF: 0.022,
+    USD: 7.8
+  };
+
+  return rates[currency] || 1;
+}
+
+function toHKD(amount: number, currency: string) {
+  return amount * exchangeRateToHKD(currency);
+}
+
 export default function TripPilotApp() {
-  const [data, setData] = useState<TripData | null>(null);
+  const [data, setData] = useState<TripDataV2 | null>(null);
   const [activeTab, setActiveTab] = useState<MainTab>("trip");
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [showAddItinerary, setShowAddItinerary] = useState(false);
@@ -263,7 +338,7 @@ export default function TripPilotApp() {
   const [showAddShopping, setShowAddShopping] = useState(false);
 
   useEffect(() => {
-    const loaded = loadTripData();
+    const loaded = loadTripData() as TripDataV2;
     setData(loaded);
     setSelectedDate(loaded.trip.startDate);
   }, []);
@@ -284,7 +359,7 @@ export default function TripPilotApp() {
     );
   }
 
-  const update = (next: TripData) => setData(next);
+  const update = (next: TripDataV2) => setData(next);
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#F7EFE5] via-[#EAF2F4] to-white pb-32 text-[#172033]">
@@ -379,7 +454,7 @@ function TopBar() {
     <div className="safe-top mb-4 flex items-center justify-between">
       <div>
         <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#B85C38]">
-          TripPilot
+          TripPilot v2
         </p>
         <h1 className="text-xl font-black text-[#12355B]">中歐旅行助手</h1>
       </div>
@@ -391,7 +466,7 @@ function TopBar() {
   );
 }
 
-function TripHero({ data }: { data: TripData }) {
+function TripHero({ data }: { data: TripDataV2 }) {
   const totalAccommodation = data.accommodations.reduce((sum, x) => sum + x.totalCost, 0);
   const days =
     Math.ceil(
@@ -400,13 +475,16 @@ function TripHero({ data }: { data: TripData }) {
         86400000
     ) + 1;
 
+  const checklist = data.checklist || [];
+  const completedChecklist = checklist.filter(item => item.completed).length;
+
   return (
     <section className="relative overflow-hidden rounded-[2.25rem] bg-[#12355B] p-6 text-white shadow-2xl">
       <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-[#D6A84F]/20" />
       <div className="absolute -bottom-16 left-8 h-40 w-40 rounded-full bg-white/10" />
 
       <div className="relative z-10">
-        <div className="mb-8 flex items-start justify-between">
+        <div className="mb-8 flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-white/70">Central Europe</p>
             <h2 className="mt-1 text-3xl font-black leading-tight">{data.trip.name}</h2>
@@ -421,9 +499,7 @@ function TripHero({ data }: { data: TripData }) {
           {data.trip.startDate} → {data.trip.endDate}
         </p>
 
-        <p className="mt-2 text-sm leading-relaxed text-white/90">
-          {data.trip.route}
-        </p>
+        <p className="mt-2 text-sm leading-relaxed text-white/90">{data.trip.route}</p>
 
         <div className="mt-6 grid grid-cols-3 gap-3">
           <HeroStat label="天數" value={`${days}`} />
@@ -433,6 +509,23 @@ function TripHero({ data }: { data: TripData }) {
             value={money(totalAccommodation, data.trip.mainCurrency).replace("HKD ", "$")}
           />
         </div>
+
+        {checklist.length > 0 && (
+          <div className="mt-4 rounded-2xl bg-white/12 p-3">
+            <div className="flex items-center justify-between text-sm font-bold">
+              <span>行前準備</span>
+              <span>
+                {completedChecklist}/{checklist.length}
+              </span>
+            </div>
+            <div className="mt-2 h-2 rounded-full bg-white/15">
+              <div
+                className="h-2 rounded-full bg-[#D6A84F]"
+                style={{ width: `${(completedChecklist / checklist.length) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );
@@ -455,8 +548,8 @@ function TripHome({
   onAdd,
   onEdit
 }: {
-  data: TripData;
-  update: (d: TripData) => void;
+  data: TripDataV2;
+  update: (d: TripDataV2) => void;
   selectedDate: string;
   setSelectedDate: (d: string) => void;
   onAdd: () => void;
@@ -492,6 +585,7 @@ function TripHome({
         city: stay.city,
         date: stay.checkOutDate,
         time: "10:00",
+        order: 0,
         timeBlock: "Morning",
         address: stay.address,
         notes: `${stay.city} 住宿退房｜${stay.checkInDate} → ${stay.checkOutDate}`,
@@ -511,6 +605,7 @@ function TripHome({
         city: stay.city,
         date: stay.checkInDate,
         time: "18:00",
+        order: 99,
         timeBlock: "Evening",
         address: stay.address,
         notes: `${stay.city} 住宿入住｜${stay.checkInDate} → ${stay.checkOutDate}｜${money(
@@ -530,7 +625,12 @@ function TripHome({
   });
 
   const dayItems = sortItineraryItems([...itineraryItems, ...stayItems]);
+  const nonAutoDayItems = sortItineraryItems(
+    (data.itinerary as TimedItineraryItem[]).filter(item => item.date === selectedDate)
+  );
 
+  const completedCount = dayItems.filter(item => item.completed).length;
+  const nextItem = dayItems.find(item => !item.completed);
   const city = euroCity(selectedDate, data);
   const weatherCity = primaryCity(city);
 
@@ -557,18 +657,14 @@ function TripHome({
   function moveItem(id: string, direction: "up" | "down") {
     if (id.startsWith("auto-")) return;
 
-    const movableItems = sortItineraryItems(
-      (data.itinerary as TimedItineraryItem[]).filter(item => item.date === selectedDate)
-    );
-
-    const currentIndex = movableItems.findIndex(item => item.id === id);
+    const currentIndex = nonAutoDayItems.findIndex(item => item.id === id);
     if (currentIndex === -1) return;
 
     const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
-    if (targetIndex < 0 || targetIndex >= movableItems.length) return;
+    if (targetIndex < 0 || targetIndex >= nonAutoDayItems.length) return;
 
-    const currentItem = movableItems[currentIndex];
-    const targetItem = movableItems[targetIndex];
+    const currentItem = nonAutoDayItems[currentIndex];
+    const targetItem = nonAutoDayItems[targetIndex];
 
     const currentTime = getItemTime(currentItem);
     const targetTime = getItemTime(targetItem);
@@ -597,10 +693,6 @@ function TripHome({
     });
   }
 
-  const movableItems = sortItineraryItems(
-    (data.itinerary as TimedItineraryItem[]).filter(item => item.date === selectedDate)
-  );
-
   return (
     <div className="space-y-5">
       <TripHero data={data} />
@@ -611,22 +703,19 @@ function TripHome({
         setSelectedDate={setSelectedDate}
       />
 
-      <section className="rounded-[2rem] border border-white/70 bg-white/80 p-5 shadow-xl backdrop-blur">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-bold text-[#B85C38]">今日城市</p>
-            <h2 className="text-2xl font-black text-[#12355B]">{city}</h2>
-          </div>
+      <DailySummaryCard
+        data={data}
+        selectedDate={selectedDate}
+        city={city}
+        weatherCity={weatherCity}
+        dayItems={dayItems}
+        completedCount={completedCount}
+        nextItem={nextItem}
+      />
 
-          <WeatherMini city={weatherCity} date={selectedDate} />
-        </div>
-
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          <MiniInfo label="行程" value={`${dayItems.length} 個`} />
-          <MiniInfo label="交通" value="步行/地鐵" />
-          <MiniInfo label="預算" value="HKD" />
-        </div>
-      </section>
+      {selectedDate === data.trip.startDate && (
+        <ChecklistPanel data={data} update={update} />
+      )}
 
       <section>
         <div className="mb-3 flex items-center justify-between">
@@ -654,7 +743,7 @@ function TripHome({
 
           {dayItems.map(item => {
             const isAuto = item.id.startsWith("auto-");
-            const moveIndex = movableItems.findIndex(movable => movable.id === item.id);
+            const moveIndex = nonAutoDayItems.findIndex(movable => movable.id === item.id);
 
             return (
               <TimelineCard
@@ -662,7 +751,7 @@ function TripHome({
                 item={item}
                 isAuto={isAuto}
                 canMoveUp={!isAuto && moveIndex > 0}
-                canMoveDown={!isAuto && moveIndex >= 0 && moveIndex < movableItems.length - 1}
+                canMoveDown={!isAuto && moveIndex >= 0 && moveIndex < nonAutoDayItems.length - 1}
                 onToggle={() => toggleComplete(item.id)}
                 onDelete={() => deleteItem(item.id)}
                 onEdit={() => onEdit(item)}
@@ -674,6 +763,183 @@ function TripHome({
         </div>
       </section>
     </div>
+  );
+}
+
+function DailySummaryCard({
+  data,
+  selectedDate,
+  city,
+  weatherCity,
+  dayItems,
+  completedCount,
+  nextItem
+}: {
+  data: TripDataV2;
+  selectedDate: string;
+  city: string;
+  weatherCity: string;
+  dayItems: TimedItineraryItem[];
+  completedCount: number;
+  nextItem?: TimedItineraryItem;
+}) {
+  const progress = dayItems.length ? Math.round((completedCount / dayItems.length) * 100) : 0;
+
+  return (
+    <section className="rounded-[2rem] border border-white/70 bg-white/80 p-5 shadow-xl backdrop-blur">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold text-[#B85C38]">今日摘要 · {dateLabel(selectedDate)}</p>
+          <h2 className="mt-1 text-2xl font-black text-[#12355B]">{city}</h2>
+          <p className="mt-1 text-sm font-semibold text-slate-500">
+            {dayItems.length} 個行程 · 完成 {completedCount} 個
+          </p>
+        </div>
+
+        <WeatherMini city={weatherCity} date={selectedDate} />
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        <MiniInfo label="行程" value={`${dayItems.length} 個`} />
+        <MiniInfo label="進度" value={`${progress}%`} />
+        <MiniInfo label="主幣別" value={data.trip.mainCurrency} />
+      </div>
+
+      <div className="mt-4 h-2 rounded-full bg-slate-100">
+        <div
+          className="h-2 rounded-full bg-[#B85C38]"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      {nextItem && (
+        <div className="mt-4 rounded-2xl bg-[#F7EFE5] p-4">
+          <p className="text-xs font-black text-[#B85C38]">下一個行程</p>
+          <p className="mt-1 text-sm font-black text-[#12355B]">
+            {getItemTime(nextItem)} · {nextItem.title}
+          </p>
+        </div>
+      )}
+
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <LocalTimeMini city={weatherCity} />
+        <ExchangeMini />
+      </div>
+    </section>
+  );
+}
+
+function LocalTimeMini({ city }: { city: string }) {
+  const [local, setLocal] = useState<LocalTimeState>({
+    label: cityCoords[city]?.label || city,
+    time: "--:--"
+  });
+
+  useEffect(() => {
+    const timezone = cityCoords[city]?.timezone || "Europe/Vienna";
+    const label = cityCoords[city]?.label || city;
+
+    function tick() {
+      const formatter = new Intl.DateTimeFormat("zh-HK", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: timezone
+      });
+
+      setLocal({
+        label,
+        time: formatter.format(new Date())
+      });
+    }
+
+    tick();
+    const timer = window.setInterval(tick, 60000);
+
+    return () => window.clearInterval(timer);
+  }, [city]);
+
+  return (
+    <div className="rounded-2xl bg-white p-3 shadow-sm">
+      <p className="text-xs font-black text-slate-400">當地時間</p>
+      <p className="mt-1 text-lg font-black text-[#12355B]">{local.time}</p>
+      <p className="text-xs text-slate-500">{local.label}</p>
+    </div>
+  );
+}
+
+function ExchangeMini() {
+  return (
+    <div className="rounded-2xl bg-white p-3 shadow-sm">
+      <p className="text-xs font-black text-slate-400">匯率參考</p>
+      <p className="mt-1 text-lg font-black text-[#12355B]">€1 ≈ HK$8.5</p>
+      <p className="text-xs text-slate-500">手動參考值</p>
+    </div>
+  );
+}
+
+function ChecklistPanel({
+  data,
+  update
+}: {
+  data: TripDataV2;
+  update: (d: TripDataV2) => void;
+}) {
+  const checklist = data.checklist || [];
+
+  function toggle(id: string) {
+    update({
+      ...data,
+      checklist: checklist.map(item =>
+        item.id === id ? { ...item, completed: !item.completed } : item
+      )
+    });
+  }
+
+  if (!checklist.length) return null;
+
+  return (
+    <section className="rounded-[2rem] bg-white p-5 shadow-xl">
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-bold text-[#B85C38]">Before Trip</p>
+          <h2 className="text-2xl font-black text-[#12355B]">行前清單</h2>
+        </div>
+        <p className="rounded-full bg-[#F7EFE5] px-3 py-1 text-xs font-black text-[#12355B]">
+          {checklist.filter(item => item.completed).length}/{checklist.length}
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {checklist.map(item => (
+          <button
+            key={item.id}
+            onClick={() => toggle(item.id)}
+            className="flex w-full items-start gap-3 rounded-2xl bg-slate-50 p-4 text-left"
+          >
+            <span
+              className={`mt-1 grid h-6 w-6 shrink-0 place-items-center rounded-full border ${
+                item.completed
+                  ? "border-emerald-500 bg-emerald-500 text-white"
+                  : "border-slate-300 bg-white"
+              }`}
+            >
+              {item.completed ? "✓" : ""}
+            </span>
+
+            <span>
+              <span className="block text-sm font-black text-[#12355B]">{item.title}</span>
+              <span className="mt-1 block text-xs font-semibold text-[#B85C38]">
+                {checklistCategoryLabel[item.category]}
+              </span>
+              {item.notes && (
+                <span className="mt-1 block text-xs text-slate-500">{item.notes}</span>
+              )}
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -711,7 +977,7 @@ function WeatherMini({ city, date }: { city: string; date: string }) {
           return;
         }
 
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto&start_date=${date}&end_date=${date}`;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=auto&start_date=${date}&end_date=${date}`;
 
         const response = await fetch(url);
         const json = await response.json();
@@ -724,7 +990,6 @@ function WeatherMini({ city, date }: { city: string; date: string }) {
 
         setWeather({
           loading: false,
-          temp: typeof max === "number" ? Math.round(max) : undefined,
           max: typeof max === "number" ? Math.round(max) : undefined,
           min: typeof min === "number" ? Math.round(min) : undefined,
           code,
@@ -829,7 +1094,7 @@ function TimelineCard({
   onMoveUp: () => void;
   onMoveDown: () => void;
 }) {
-  const icon = getItemIcon(item.title, item.notes);
+  const type = getItemType(item);
   const itemTime = getItemTime(item);
 
   return (
@@ -837,7 +1102,7 @@ function TimelineCard({
       <div className="flex gap-4">
         <div className="flex flex-col items-center">
           <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#EAF2F4] text-2xl">
-            {icon}
+            {type.icon}
           </div>
           <div className="mt-2 h-full w-px bg-slate-200" />
         </div>
@@ -845,12 +1110,16 @@ function TimelineCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="text-sm font-black text-[#B85C38]">
-                {itemTime} · {timeBlockLabel[item.timeBlock]}
-              </p>
-              <h3 className="mt-1 text-xl font-black text-[#12355B]">
-                {item.title}
-              </h3>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-black text-[#B85C38]">
+                  {itemTime} · {timeBlockLabel[item.timeBlock]}
+                </p>
+                <span className={`rounded-full px-2 py-1 text-[11px] font-black ${type.color}`}>
+                  {type.label}
+                </span>
+              </div>
+
+              <h3 className="mt-1 text-xl font-black text-[#12355B]">{item.title}</h3>
             </div>
 
             <button
@@ -936,7 +1205,7 @@ function TimelineCard({
   );
 }
 
-function MapPage({ data, selectedDate }: { data: TripData; selectedDate: string }) {
+function MapPage({ data, selectedDate }: { data: TripDataV2; selectedDate: string }) {
   const accommodationPlaces = data.accommodations.map(stay => ({
     id: stay.id,
     title: stay.name,
@@ -979,7 +1248,7 @@ function MapPage({ data, selectedDate }: { data: TripData; selectedDate: string 
             <p className="text-sm font-bold text-white/70">Map Center</p>
             <h2 className="mt-1 text-3xl font-black">中歐地圖中心</h2>
             <p className="mt-3 text-sm leading-relaxed text-white/75">
-              查看今日景點、住宿位置同常用 Google Maps 導航。
+              今日景點、住宿位置、交通站點同 Google Maps 導航。
             </p>
           </div>
 
@@ -1013,7 +1282,7 @@ function MapPage({ data, selectedDate }: { data: TripData; selectedDate: string 
       <section>
         <h2 className="mb-3 text-2xl font-black text-[#12355B]">全部地點</h2>
         <div className="space-y-3">
-          {places.slice(0, 20).map(place => (
+          {places.slice(0, 30).map(place => (
             <PlaceCard
               key={place.id}
               title={place.title}
@@ -1070,21 +1339,26 @@ function BudgetPage({
   update,
   onAdd
 }: {
-  data: TripData;
-  update: (d: TripData) => void;
+  data: TripDataV2;
+  update: (d: TripDataV2) => void;
   onAdd: () => void;
 }) {
-  const total = data.expenses.reduce((sum, x) => sum + x.amount, 0);
-  const accommodation = data.expenses
+  const totalHKD = data.expenses.reduce(
+    (sum, x) => sum + toHKD(x.amount, x.currency),
+    0
+  );
+
+  const accommodationHKD = data.expenses
     .filter(x => x.category === "Accommodation")
-    .reduce((sum, x) => sum + x.amount, 0);
-  const daily = total / 13;
+    .reduce((sum, x) => sum + toHKD(x.amount, x.currency), 0);
+
+  const dailyHKD = totalHKD / 14;
 
   const byCategory = expenseCategories.map(category => ({
     category,
     amount: data.expenses
       .filter(x => x.category === category)
-      .reduce((sum, x) => sum + x.amount, 0)
+      .reduce((sum, x) => sum + toHKD(x.amount, x.currency), 0)
   }));
 
   function deleteExpense(id: string) {
@@ -1100,9 +1374,7 @@ function BudgetPage({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-bold text-white/70">旅費管理</p>
-            <h2 className="mt-1 text-4xl font-black">
-              {money(total, data.trip.mainCurrency)}
-            </h2>
+            <h2 className="mt-1 text-4xl font-black">{money(totalHKD, "HKD")}</h2>
           </div>
 
           <button
@@ -1114,9 +1386,13 @@ function BudgetPage({
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-3">
-          <BudgetMini label="住宿" value={money(accommodation, data.trip.mainCurrency)} />
-          <BudgetMini label="日均" value={money(daily, data.trip.mainCurrency)} />
+          <BudgetMini label="住宿" value={money(accommodationHKD, "HKD")} />
+          <BudgetMini label="日均" value={money(dailyHKD, "HKD")} />
         </div>
+
+        <p className="mt-4 text-xs text-white/60">
+          匯率以手動參考值計算：EUR 8.5 / CAD 5.7 / CZK 0.36 / HUF 0.022
+        </p>
       </section>
 
       <section className="rounded-[2rem] bg-white p-5 shadow-xl">
@@ -1126,14 +1402,14 @@ function BudgetPage({
             <div key={row.category}>
               <div className="flex justify-between text-sm font-black">
                 <span>{categoryLabel[row.category]}</span>
-                <span>{money(row.amount, data.trip.mainCurrency)}</span>
+                <span>{money(row.amount, "HKD")}</span>
               </div>
 
               <div className="mt-2 h-2 rounded-full bg-slate-100">
                 <div
                   className="h-2 rounded-full bg-[#D6A84F]"
                   style={{
-                    width: `${total ? Math.min((row.amount / total) * 100, 100) : 0}%`
+                    width: `${totalHKD ? Math.min((row.amount / totalHKD) * 100, 100) : 0}%`
                   }}
                 />
               </div>
@@ -1156,18 +1432,18 @@ function BudgetPage({
                     {expense.title}
                   </h3>
                   <p className="mt-1 text-sm text-slate-500">
+                    {money(expense.amount, expense.currency)} · 約 {money(toHKD(expense.amount, expense.currency), "HKD")}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500">
                     付款人：{expense.paidBy || "未設定"}
                     {expense.notes ? ` · ${expense.notes}` : ""}
                   </p>
                 </div>
 
                 <div className="text-right">
-                  <p className="font-black text-[#12355B]">
-                    {money(expense.amount, expense.currency)}
-                  </p>
                   <button
                     onClick={() => deleteExpense(expense.id)}
-                    className="mt-2 text-xs font-bold text-rose-500"
+                    className="text-xs font-bold text-rose-500"
                   >
                     刪除
                   </button>
@@ -1195,8 +1471,8 @@ function ShoppingPage({
   update,
   onAdd
 }: {
-  data: TripData;
-  update: (d: TripData) => void;
+  data: TripDataV2;
+  update: (d: TripDataV2) => void;
   onAdd: () => void;
 }) {
   function deleteItem(id: string) {
@@ -1281,7 +1557,7 @@ function ShoppingCard({ item, onDelete }: { item: WishlistItem; onDelete: () => 
   );
 }
 
-function InfoPage({ data, update }: { data: TripData; update: (d: TripData) => void }) {
+function InfoPage({ data, update }: { data: TripDataV2; update: (d: TripDataV2) => void }) {
   return (
     <div className="space-y-5">
       <section className="rounded-[2.25rem] bg-[#12355B] p-6 text-white shadow-2xl">
@@ -1308,7 +1584,7 @@ function InfoPage({ data, update }: { data: TripData; update: (d: TripData) => v
           <InfoCard
             key={item.id}
             title={`${item.fromCity} → ${item.toCity}`}
-            subtitle={`${item.date} · ${item.transportType}`}
+            subtitle={`${item.date} · ${item.transportType} · ${item.departureTime} → ${item.arrivalTime}`}
             text={`${item.departureStation || "未設定"} → ${item.arrivalStation || "未設定"} · ${
               item.confirmed ? "已確認" : "未確認"
             } ${item.notes ? `· ${item.notes}` : ""}`}
@@ -1330,7 +1606,7 @@ function InfoPage({ data, update }: { data: TripData; update: (d: TripData) => v
 
         <div className="mt-4 flex gap-3">
           <button
-            onClick={() => update(resetTripData())}
+            onClick={() => update(resetTripData() as TripDataV2)}
             className="rounded-full bg-[#F7EFE5] px-4 py-3 text-sm font-black text-[#12355B]"
           >
             重設範例資料
@@ -1339,7 +1615,7 @@ function InfoPage({ data, update }: { data: TripData; update: (d: TripData) => v
           <button
             onClick={() => {
               clearTripData();
-              update(resetTripData());
+              update(resetTripData() as TripDataV2);
             }}
             className="rounded-full bg-rose-50 px-4 py-3 text-sm font-black text-rose-600"
           >
@@ -1471,7 +1747,7 @@ function ItineraryModal({
   onSave
 }: {
   mode: "add" | "edit";
-  data: TripData;
+  data: TripDataV2;
   selectedDate: string;
   initialItem?: TimedItineraryItem;
   onClose: () => void;
@@ -1500,6 +1776,7 @@ function ItineraryModal({
       city,
       date,
       time,
+      order: initialItem?.order || Date.now(),
       timeBlock: timeBlockFromTime(time),
       address,
       notes,
@@ -1534,10 +1811,7 @@ function ItineraryModal({
         setValue={value => {
           const block = value as TimeBlock;
           setTimeBlock(block);
-
-          if (!time) {
-            setTime(fallbackTimeFromBlock(block));
-          }
+          setTime(fallbackTimeFromBlock(block));
         }}
       />
 
@@ -1558,7 +1832,7 @@ function AddExpenseModal({
   onClose,
   onSave
 }: {
-  data: TripData;
+  data: TripDataV2;
   onClose: () => void;
   onSave: (expense: Expense) => void;
 }) {
@@ -1566,6 +1840,7 @@ function AddExpenseModal({
   const [date, setDate] = useState(data.trip.startDate);
   const [category, setCategory] = useState<ExpenseCategory>("Food");
   const [amount, setAmount] = useState("0");
+  const [currency, setCurrency] = useState("EUR");
   const [paidBy, setPaidBy] = useState(data.trip.travelers[0] || "Chris");
   const [notes, setNotes] = useState("");
 
@@ -1578,7 +1853,7 @@ function AddExpenseModal({
       date,
       category,
       amount: Number(amount || 0),
-      currency: data.trip.mainCurrency,
+      currency,
       paidBy,
       notes
     });
@@ -1598,6 +1873,14 @@ function AddExpenseModal({
       />
 
       <Field label="金額" type="number" value={amount} setValue={setAmount} />
+
+      <Select
+        label="幣別"
+        value={currency}
+        options={["EUR", "HKD", "CAD", "CZK", "HUF", "USD"]}
+        setValue={setCurrency}
+      />
+
       <Field label="付款人" value={paidBy} setValue={setPaidBy} />
       <TextArea label="備註" value={notes} setValue={setNotes} />
       <PrimaryButton onClick={submit}>儲存支出</PrimaryButton>
@@ -1610,13 +1893,14 @@ function AddShoppingModal({
   onClose,
   onSave
 }: {
-  data: TripData;
+  data: TripDataV2;
   onClose: () => void;
   onSave: (item: WishlistItem) => void;
 }) {
   const [placeName, setPlaceName] = useState("");
   const [city, setCity] = useState("Vienna");
   const [estimatedCost, setEstimatedCost] = useState("0");
+  const [currency, setCurrency] = useState("EUR");
   const [notes, setNotes] = useState("");
 
   function submit() {
@@ -1630,7 +1914,7 @@ function AddShoppingModal({
       priority: "Nice to Go",
       address: "",
       estimatedCost: Number(estimatedCost || 0),
-      currency: data.trip.mainCurrency,
+      currency,
       estimatedDuration: "",
       notes,
       googleMapsLink: ""
@@ -1642,6 +1926,12 @@ function AddShoppingModal({
       <Field label="名稱" value={placeName} setValue={setPlaceName} />
       <Field label="城市" value={city} setValue={setCity} />
       <Field label="預算" type="number" value={estimatedCost} setValue={setEstimatedCost} />
+      <Select
+        label="幣別"
+        value={currency}
+        options={["EUR", "HKD", "CAD", "CZK", "HUF", "USD"]}
+        setValue={setCurrency}
+      />
       <TextArea label="備註" value={notes} setValue={setNotes} />
       <PrimaryButton onClick={submit}>儲存項目</PrimaryButton>
     </Modal>
