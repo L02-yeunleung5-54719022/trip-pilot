@@ -252,6 +252,17 @@ function getCountdownText(item?: TimedItineraryItem) {
   return `距離下一個行程 ${formatCountdown(Math.max(diff, 0))}`;
 }
 
+function getAccommodationCheckInTime() {
+  return "15:00";
+}
+
+function getAccommodationCheckOutTime(stay: { id?: string; name?: string; city?: string }) {
+  const name = `${stay.id || ""} ${stay.name || ""} ${stay.city || ""}`.toLowerCase();
+
+  if (name.includes("prague")) return "07:00";
+  return "10:00";
+}
+
 function makeMapsSearchLink(query: string) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
@@ -821,11 +832,11 @@ function TripHome({
             title: `退房：${stay.name}`,
             city: stay.city,
             date: stay.checkOutDate,
-            time: "10:00",
+            time: getAccommodationCheckOutTime(stay),
             order: 0,
             timeBlock: "Morning",
             address: stay.address,
-            notes: `${stay.city} 住宿退房｜${stay.checkInDate} → ${stay.checkOutDate}`,
+            notes: `${stay.city} 住宿退房｜退房時間 ${getAccommodationCheckOutTime(stay)}｜${stay.checkInDate} → ${stay.checkOutDate}`,
             estimatedCost: 0,
             currency: stay.currency,
             googleMapsLink: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
@@ -841,11 +852,11 @@ function TripHome({
             title: `入住：${stay.name}`,
             city: stay.city,
             date: stay.checkInDate,
-            time: "18:00",
+            time: getAccommodationCheckInTime(),
             order: 99,
             timeBlock: "Evening",
             address: stay.address,
-            notes: `${stay.city} 住宿入住｜${stay.checkInDate} → ${stay.checkOutDate}｜${money(
+            notes: `${stay.city} 住宿入住｜入住時間 ${getAccommodationCheckInTime()}｜${stay.checkInDate} → ${stay.checkOutDate}｜${money(
               stay.totalCost,
               stay.currency
             )}｜${stay.nights} 晚`,
