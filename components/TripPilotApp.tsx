@@ -2232,7 +2232,7 @@ function ShoppingPage({
             <p className="text-sm font-bold text-white/70">Wish List</p>
             <h2 className="mt-1 text-3xl font-black">願望清單</h2>
             <p className="mt-2 text-sm text-white/70">
-              想去的景點、餐廳、活動同購物點都可以放在這裡，再一鍵加入行程。
+              想去的景點、餐廳、活動、拍照點同購物點都可以放在這裡，再一鍵加入行程。活動可先歸類為「其他」。
             </p>
           </div>
 
@@ -2244,7 +2244,7 @@ function ShoppingPage({
 
       <div className="grid gap-4">
         {data.wishlist.length === 0 && (
-          <EmptyCard icon="⭐" title="未有願望清單" text="新增想去的景點、餐廳、活動或購物點。" />
+          <EmptyCard icon="⭐" title="未有願望清單" text="新增想去的景點、餐廳、活動、拍照點或購物點。活動可先選「其他」。" />
         )}
 
         {data.wishlist.map(item => (
@@ -2281,7 +2281,7 @@ function ShoppingCard({
     <article className="rounded-[2rem] border border-[#E8DED0] bg-[#FFFDF8] p-5 shadow-[0_12px_30px_rgba(24,59,99,0.08)]">
       <div className="flex gap-4">
         <div className="grid h-16 w-16 shrink-0 place-items-center rounded-3xl bg-[#F4EEE4] text-3xl">
-          {item.category === "Restaurant" ? "🍽" : item.category === "Attraction" ? "📍" : item.category === "Activity" ? "🎟" : "⭐"}
+          {item.category === "Restaurant" ? "🍽" : item.category === "Attraction" ? "📍" : "⭐"}
         </div>
 
         <div className="min-w-0 flex-1">
@@ -2902,11 +2902,10 @@ function AddShoppingModal({
       <Select
         label="類型"
         value={category}
-        options={["Attraction", "Restaurant", "Activity", "Cafe", "Bar", "Museum", "Shopping", "Photo Spot", "Other"]}
+        options={["Attraction", "Restaurant", "Cafe", "Bar", "Museum", "Shopping", "Photo Spot", "Other"]}
         labels={{
           Attraction: "景點",
           Restaurant: "餐廳",
-          Activity: "活動",
           Cafe: "咖啡店",
           Bar: "酒吧",
           Museum: "博物館",
