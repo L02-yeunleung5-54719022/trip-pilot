@@ -1656,9 +1656,15 @@ function AccommodationStayCard({
           </p>
         </div>
 
-        <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#FCF1DF] text-2xl">
+        <button
+          type="button"
+          onClick={onEdit}
+          disabled={!isAuto}
+          className="grid h-14 w-14 place-items-center rounded-2xl bg-[#FCF1DF] text-2xl transition active:scale-95 disabled:cursor-default disabled:active:scale-100"
+          aria-label="編輯住宿卡"
+        >
           {isCheckOut ? "🧳" : "🏨"}
-        </div>
+        </button>
       </div>
 
       <div className="mt-4 rounded-2xl bg-[#FAF6EF] p-4">
@@ -1671,15 +1677,6 @@ function AccommodationStayCard({
           <p className="text-xs font-black text-[#7A9A6D]">入住資料</p>
           <p className="mt-1 text-sm leading-relaxed text-[#183B63]">{item.notes}</p>
         </div>
-      )}
-
-      {isAuto && (
-        <button
-          onClick={onEdit}
-          className="mt-4 w-full rounded-2xl bg-[#183B63] px-4 py-3 text-sm font-black text-white"
-        >
-          編輯住宿卡
-        </button>
       )}
 
       <TimelineActions
