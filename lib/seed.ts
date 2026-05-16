@@ -1,6 +1,6 @@
 import type { TripData } from "./types";
 
-export const seedData: TripData = {
+export const seedData = {
   trip: {
     id: "trip-2026-europe-birthday",
     name: "黃梓甄🥰 中歐生日之旅",
@@ -543,4 +543,4 @@ export const seedData: TripData = {
       notes: "USB-C、Lightning、相機電池"
     }
   ]
-};
+} as unknown as TripData;
