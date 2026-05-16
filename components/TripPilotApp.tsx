@@ -165,6 +165,11 @@ function getCitySummaryBackground(city: string) {
   return "/dashboard-bg.png";
 }
 
+function withAlpha(hex: string, alpha = "B3") {
+  if (!hex.startsWith("#") || hex.length !== 7) return hex;
+  return `${hex}${alpha}`;
+}
+
 function uid(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
@@ -547,7 +552,7 @@ function TripHero({ data }: { data: TripDataV2 }) {
         </div>
 
         {checklist.length > 0 && (
-          <div className="mt-4 rounded-2xl border border-[#E8DED0] bg-[#FAF6EF] p-3">
+          <div className="mt-4 rounded-2xl border border-[#E8DED0] bg-[#FAF6EFB3] p-3 shadow-sm">
             <div className="flex items-center justify-between text-sm font-black">
               <span>行前準備</span>
               <span>
@@ -569,7 +574,7 @@ function TripHero({ data }: { data: TripDataV2 }) {
 
 function HeroStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-[#E8DED0] bg-[#FAF6EF] p-3">
+    <div className="rounded-2xl border border-[#E8DED0] bg-[#FAF6EFB3] p-3 shadow-sm">
       <p className="text-xs text-[#6D7B8A]">{label}</p>
       <p className="mt-1 text-lg font-black text-[#183B63]">{value}</p>
     </div>
@@ -856,9 +861,9 @@ function DailySummaryCard({
 
 
       <div className="mt-4 grid grid-cols-3 gap-2">
-        <MiniInfo label="行程" value={`${dayItems.length} 個`} />
-        <MiniInfo label="進度" value={`${progress}%`} />
-        <CompactLocalTimeInfo city={weatherCity} />
+        <MiniInfo label="行程" value={`${dayItems.length} 個`} color={cityTheme.soft} />
+        <MiniInfo label="進度" value={`${progress}%`} color={cityTheme.soft} />
+        <CompactLocalTimeInfo city={weatherCity} color={cityTheme.soft} />
       </div>
 
       <div className="mt-4 h-2 rounded-full bg-[#E8DED0]">
@@ -869,7 +874,7 @@ function DailySummaryCard({
       </div>
 
       {nextItem && (
-        <div className="mt-4 rounded-2xl p-4" style={{ backgroundColor: cityTheme.soft }}>
+        <div className="mt-4 rounded-2xl border border-[#E8DED0] p-4 shadow-sm" style={{ backgroundColor: withAlpha(cityTheme.soft, "B3") }}>
           <p className="text-xs font-black" style={{ color: cityTheme.accent }}>
             下一個行程
           </p>
@@ -1154,7 +1159,10 @@ function DaySelector({
 
 function MiniInfo({ label, value, color = "#FAF6EF" }: { label: string; value: string; color?: string }) {
   return (
-    <div className="rounded-2xl p-3" style={{ backgroundColor: color }}>
+    <div
+      className="rounded-2xl border border-[#E8DED0] p-3 shadow-sm"
+      style={{ backgroundColor: withAlpha(color, "B3") }}
+    >
       <p className="text-xs font-bold text-[#6D7B8A]">{label}</p>
       <p className="mt-1 text-sm font-black text-[#183B63]">{value}</p>
     </div>
@@ -1186,7 +1194,10 @@ function CompactLocalTimeInfo({ city, color = "#FAF6EF" }: { city: string; color
   }, [city]);
 
   return (
-    <div className="rounded-2xl p-3" style={{ backgroundColor: color }}>
+    <div
+      className="rounded-2xl border border-[#E8DED0] p-3 shadow-sm"
+      style={{ backgroundColor: withAlpha(color, "B3") }}
+    >
       <p className="text-xs font-bold text-[#6D7B8A]">當地時間</p>
       <p className="mt-1 text-sm font-black text-[#183B63]">{time}</p>
       <p className="truncate text-[11px] font-semibold text-[#6D7B8A]">{label}</p>
