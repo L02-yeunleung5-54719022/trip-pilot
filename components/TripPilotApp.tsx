@@ -2342,7 +2342,7 @@ function InfoPage({
             key={stay.id}
             title={stay.name}
             subtitle={`${stay.city} · ${stay.checkInDate} → ${stay.checkOutDate}`}
-            text={`${stay.address} · ${money(stay.totalCost, stay.currency)} · ${stay.nights} 晚${stay.bookingReference ? ` · Booking: ${stay.bookingReference}` : ""}${stay.notes ? ` · ${stay.notes}` : ""}`}
+            text={`${stay.address} · ${money(stay.totalCost, stay.currency)} · ${stay.nights} 晚${stay.notes ? ` · ${stay.notes}` : ""}`}
           />
         ))}
       </InfoSection>
