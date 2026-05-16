@@ -2905,7 +2905,7 @@ function AddShoppingModal({
           "Photo Spot": "拍照點",
           Other: "其他"
         }}
-        setValue={setCategory}
+        setValue={value => setCategory(value as typeof category)}
       />
 
       <Select
@@ -2917,7 +2917,7 @@ function AddShoppingModal({
           "Nice to Go": "想去",
           Backup: "後備"
         }}
-        setValue={setPriority}
+        setValue={value => setPriority(value as typeof priority)}
       />
 
       <Field label="地址" value={address} setValue={setAddress} />
