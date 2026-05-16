@@ -430,8 +430,6 @@ export default function TripPilotApp() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#F7EFE5] via-[#EAF2F4] to-white pb-32 text-[#172033]">
       <div className="mx-auto max-w-md px-4 pt-4">
-        <TopBar />
-
         {activeTab === "trip" && (
           <TripHome
             data={data}
@@ -512,97 +510,6 @@ export default function TripPilotApp() {
         />
       )}
     </main>
-  );
-}
-
-function TopBar() {
-  return (
-    <div className="safe-top mb-4 flex items-center justify-between">
-      <div>
-        <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#B85C38]">
-          TripPilot v2
-        </p>
-        <h1 className="text-xl font-black text-[#12355B]">中歐旅行助手</h1>
-      </div>
-
-      <div className="grid h-11 w-11 place-items-center rounded-full bg-white/80 text-xl shadow-lg">
-        🧳
-      </div>
-    </div>
-  );
-}
-
-function TripHero({ data }: { data: TripDataV2 }) {
-  const totalAccommodation = data.accommodations.reduce((sum, x) => sum + x.totalCost, 0);
-  const days =
-    Math.ceil(
-      (parseDateKey(data.trip.endDate).getTime() -
-        parseDateKey(data.trip.startDate).getTime()) /
-        86400000
-    ) + 1;
-
-  const checklist = data.checklist || [];
-  const completedChecklist = checklist.filter(item => item.completed).length;
-
-  return (
-    <section className="relative overflow-hidden rounded-[2.25rem] bg-[#12355B] p-6 text-white shadow-2xl">
-      <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-[#D6A84F]/20" />
-      <div className="absolute -bottom-16 left-8 h-40 w-40 rounded-full bg-white/10" />
-
-      <div className="relative z-10">
-        <div className="mb-8 flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-white/70">Central Europe</p>
-            <h2 className="mt-1 text-3xl font-black leading-tight">{data.trip.name}</h2>
-          </div>
-
-          <div className="rounded-2xl bg-white/15 px-3 py-2 text-sm font-bold backdrop-blur">
-            ✈️ EU
-          </div>
-        </div>
-
-        <p className="text-sm font-semibold text-white/75">
-          {data.trip.startDate} → {data.trip.endDate}
-        </p>
-
-        <p className="mt-2 text-sm leading-relaxed text-white/90">{data.trip.route}</p>
-
-        <div className="mt-6 grid grid-cols-3 gap-3">
-          <HeroStat label="天數" value={`${days}`} />
-          <HeroStat label="城市" value="5" />
-          <HeroStat
-            label="住宿"
-            value={money(totalAccommodation, data.trip.mainCurrency).replace("HKD ", "$")}
-          />
-        </div>
-
-        {checklist.length > 0 && (
-          <div className="mt-4 rounded-2xl bg-white/12 p-3">
-            <div className="flex items-center justify-between text-sm font-bold">
-              <span>行前準備</span>
-              <span>
-                {completedChecklist}/{checklist.length}
-              </span>
-            </div>
-            <div className="mt-2 h-2 rounded-full bg-white/15">
-              <div
-                className="h-2 rounded-full bg-[#D6A84F]"
-                style={{ width: `${(completedChecklist / checklist.length) * 100}%` }}
-              />
-            </div>
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function HeroStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl bg-white/12 p-3 backdrop-blur">
-      <p className="text-xs text-white/60">{label}</p>
-      <p className="mt-1 text-lg font-black">{value}</p>
-    </div>
   );
 }
 
@@ -760,139 +667,153 @@ function TripHome({
     });
   }
 
-return (
-  <div className="space-y-5">
-    {isPreTrip ? (
-      <TripHero data={data} />
-    ) : (
-      <DailySummaryCard
-        data={data}
+  return (
+    <div className="space-y-5 pt-2">
+      {isPreTrip ? (
+        <TripHero data={data} />
+      ) : (
+        <DailySummaryCard
+          data={data}
+          selectedDate={selectedDate}
+          city={city}
+          weatherCity={weatherCity}
+          dayItems={dayItems}
+          completedCount={completedCount}
+          nextItem={nextItem}
+        />
+      )}
+
+      <DaySelector
+        dates={dates}
         selectedDate={selectedDate}
-        city={city}
-        weatherCity={weatherCity}
-        dayItems={dayItems}
-        completedCount={completedCount}
-        nextItem={nextItem}
+        setSelectedDate={setSelectedDate}
       />
-    )}
 
-    <DaySelector
-      dates={dates}
-      selectedDate={selectedDate}
-      setSelectedDate={setSelectedDate}
-    />
+      {isPreTrip ? (
+        <ChecklistPanel data={data} update={update} />
+      ) : (
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold text-[#B85C38]">Timeline</p>
+              <h2 className="text-2xl font-black text-[#12355B]">今日行程</h2>
+            </div>
 
-    {isPreTrip ? (
-      <ChecklistPanel data={data} update={update} />
-    ) : (
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-bold text-[#B85C38]">Timeline</p>
-            <h2 className="text-2xl font-black text-[#12355B]">今日行程</h2>
+            <button
+              onClick={onAdd}
+              className="rounded-full bg-[#B85C38] px-4 py-3 text-sm font-black text-white shadow-lg"
+            >
+              ＋新增
+            </button>
           </div>
 
-          <button
-            onClick={onAdd}
-            className="rounded-full bg-[#B85C38] px-4 py-3 text-sm font-black text-white shadow-lg"
-          >
-            ＋新增
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          {dayItems.length === 0 && (
-            <EmptyCard
-              icon="🗓"
-              title="今日未有行程"
-              text="可以加入景點、交通、餐廳或住宿安排。"
-            />
-          )}
-
-          {dayItems.map(item => {
-            const isAuto = item.id.startsWith("auto-");
-            const moveIndex = nonAutoDayItems.findIndex(movable => movable.id === item.id);
-
-            return (
-              <TimelineCard
-                key={item.id}
-                item={item}
-                isAuto={isAuto}
-                canMoveUp={!isAuto && moveIndex > 0}
-                canMoveDown={
-                  !isAuto && moveIndex >= 0 && moveIndex < nonAutoDayItems.length - 1
-                }
-                onToggle={() => toggleComplete(item.id)}
-                onDelete={() => deleteItem(item.id)}
-                onEdit={() => onEdit(item)}
-                onMoveUp={() => moveItem(item.id, "up")}
-                onMoveDown={() => moveItem(item.id, "down")}
+          <div className="space-y-4">
+            {dayItems.length === 0 && (
+              <EmptyCard
+                icon="🗓"
+                title="今日未有行程"
+                text="可以加入景點、交通、餐廳或住宿安排。"
               />
-            );
-          })}
-        </div>
-      </section>
-    )}
-  </div>
-);
-            data={data}
-            selectedDate={selectedDate}
-            city={city}
-            weatherCity={weatherCity}
-            dayItems={dayItems}
-            completedCount={completedCount}
-            nextItem={nextItem}
-          />
+            )}
 
-          <section>
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-bold text-[#B85C38]">Timeline</p>
-                <h2 className="text-2xl font-black text-[#12355B]">今日行程</h2>
-              </div>
+            {dayItems.map(item => {
+              const isAuto = item.id.startsWith("auto-");
+              const moveIndex = nonAutoDayItems.findIndex(movable => movable.id === item.id);
 
-              <button
-                onClick={onAdd}
-                className="rounded-full bg-[#B85C38] px-4 py-3 text-sm font-black text-white shadow-lg"
-              >
-                ＋新增
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {dayItems.length === 0 && (
-                <EmptyCard
-                  icon="🗓"
-                  title="今日未有行程"
-                  text="可以加入景點、交通、餐廳或住宿安排。"
+              return (
+                <TimelineCard
+                  key={item.id}
+                  item={item}
+                  isAuto={isAuto}
+                  canMoveUp={!isAuto && moveIndex > 0}
+                  canMoveDown={
+                    !isAuto && moveIndex >= 0 && moveIndex < nonAutoDayItems.length - 1
+                  }
+                  onToggle={() => toggleComplete(item.id)}
+                  onDelete={() => deleteItem(item.id)}
+                  onEdit={() => onEdit(item)}
+                  onMoveUp={() => moveItem(item.id, "up")}
+                  onMoveDown={() => moveItem(item.id, "down")}
                 />
-              )}
-
-              {dayItems.map(item => {
-                const isAuto = item.id.startsWith("auto-");
-                const moveIndex = nonAutoDayItems.findIndex(movable => movable.id === item.id);
-
-                return (
-                  <TimelineCard
-                    key={item.id}
-                    item={item}
-                    isAuto={isAuto}
-                    canMoveUp={!isAuto && moveIndex > 0}
-                    canMoveDown={
-                      !isAuto && moveIndex >= 0 && moveIndex < nonAutoDayItems.length - 1
-                    }
-                    onToggle={() => toggleComplete(item.id)}
-                    onDelete={() => deleteItem(item.id)}
-                    onEdit={() => onEdit(item)}
-                    onMoveUp={() => moveItem(item.id, "up")}
-                    onMoveDown={() => moveItem(item.id, "down")}
-                  />
-                );
-              })}
-            </div>
-          </section>
-        </>
+              );
+            })}
+          </div>
+        </section>
       )}
+    </div>
+  );
+}
+
+function TripHero({ data }: { data: TripDataV2 }) {
+  const totalAccommodation = data.accommodations.reduce((sum, x) => sum + x.totalCost, 0);
+  const days =
+    Math.ceil(
+      (parseDateKey(data.trip.endDate).getTime() -
+        parseDateKey(data.trip.startDate).getTime()) /
+        86400000
+    ) + 1;
+
+  const checklist = data.checklist || [];
+  const completedChecklist = checklist.filter(item => item.completed).length;
+
+  return (
+    <section className="relative overflow-hidden rounded-[2.25rem] bg-[#12355B] p-6 text-white shadow-2xl">
+      <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-[#D6A84F]/20" />
+      <div className="absolute -bottom-16 left-8 h-40 w-40 rounded-full bg-white/10" />
+
+      <div className="relative z-10">
+        <div className="mb-8 flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-white/70">Central Europe</p>
+            <h2 className="mt-1 text-3xl font-black leading-tight">{data.trip.name}</h2>
+          </div>
+
+          <div className="rounded-2xl bg-white/15 px-3 py-2 text-sm font-bold backdrop-blur">
+            ✈️ EU
+          </div>
+        </div>
+
+        <p className="text-sm font-semibold text-white/75">
+          {data.trip.startDate} → {data.trip.endDate}
+        </p>
+
+        <p className="mt-2 text-sm leading-relaxed text-white/90">{data.trip.route}</p>
+
+        <div className="mt-6 grid grid-cols-3 gap-3">
+          <HeroStat label="天數" value={`${days}`} />
+          <HeroStat label="城市" value="5" />
+          <HeroStat
+            label="住宿"
+            value={money(totalAccommodation, data.trip.mainCurrency).replace("HKD ", "$")}
+          />
+        </div>
+
+        {checklist.length > 0 && (
+          <div className="mt-4 rounded-2xl bg-white/12 p-3">
+            <div className="flex items-center justify-between text-sm font-bold">
+              <span>行前準備</span>
+              <span>
+                {completedChecklist}/{checklist.length}
+              </span>
+            </div>
+            <div className="mt-2 h-2 rounded-full bg-white/15">
+              <div
+                className="h-2 rounded-full bg-[#D6A84F]"
+                style={{ width: `${(completedChecklist / checklist.length) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function HeroStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-white/12 p-3 backdrop-blur">
+      <p className="text-xs text-white/60">{label}</p>
+      <p className="mt-1 text-lg font-black">{value}</p>
     </div>
   );
 }
@@ -937,10 +858,7 @@ function DailySummaryCard({
       </div>
 
       <div className="mt-4 h-2 rounded-full bg-slate-100">
-        <div
-          className="h-2 rounded-full bg-[#B85C38]"
-          style={{ width: `${progress}%` }}
-        />
+        <div className="h-2 rounded-full bg-[#B85C38]" style={{ width: `${progress}%` }} />
       </div>
 
       {nextItem && (
@@ -1028,13 +946,7 @@ function ChecklistPanel({
   }
 
   if (!checklist.length) {
-    return (
-      <EmptyCard
-        icon="✅"
-        title="未有行前清單"
-        text="你可以在 seed data 加入 checklist。"
-      />
-    );
+    return <EmptyCard icon="✅" title="未有行前清單" text="你可以在 seed data 加入 checklist。" />;
   }
 
   return (
@@ -1072,9 +984,7 @@ function ChecklistPanel({
               <span className="mt-1 block text-xs font-semibold text-[#B85C38]">
                 {checklistCategoryLabel[item.category]}
               </span>
-              {item.notes && (
-                <span className="mt-1 block text-xs text-slate-500">{item.notes}</span>
-              )}
+              {item.notes && <span className="mt-1 block text-xs text-slate-500">{item.notes}</span>}
             </span>
           </button>
         ))}
@@ -1181,9 +1091,7 @@ function DaySelector({
         <button
           onClick={() => setSelectedDate("pretrip")}
           className={`min-w-20 rounded-3xl p-4 text-center shadow-lg transition ${
-            selectedDate === "pretrip"
-              ? "bg-[#12355B] text-white"
-              : "bg-white text-slate-600"
+            selectedDate === "pretrip" ? "bg-[#12355B] text-white" : "bg-white text-slate-600"
           }`}
         >
           <p className="text-xs font-bold opacity-70">行前</p>
@@ -1300,9 +1208,7 @@ function TimelineCard({
             </button>
           </div>
 
-          <p className="mt-2 text-sm font-semibold text-slate-500">
-            📍 {item.city || "未設定城市"}
-          </p>
+          <p className="mt-2 text-sm font-semibold text-slate-500">📍 {item.city || "未設定城市"}</p>
 
           {item.address && <p className="mt-1 text-sm text-slate-500">{item.address}</p>}
 
@@ -1312,56 +1218,18 @@ function TimelineCard({
             </div>
           )}
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            <span className="rounded-full bg-[#D6A84F]/20 px-3 py-1 text-xs font-black text-[#8A650C]">
-              {money(item.estimatedCost, item.currency)}
-            </span>
-
-            {item.googleMapsLink && (
-              <a
-                href={item.googleMapsLink}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-full bg-[#12355B] px-3 py-1 text-xs font-black text-white"
-              >
-                開啟地圖
-              </a>
-            )}
-
-            {!isAuto && (
-              <>
-                <button
-                  onClick={onEdit}
-                  className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-[#12355B]"
-                >
-                  編輯
-                </button>
-
-                <button
-                  onClick={onMoveUp}
-                  disabled={!canMoveUp}
-                  className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600 disabled:opacity-30"
-                >
-                  上移
-                </button>
-
-                <button
-                  onClick={onMoveDown}
-                  disabled={!canMoveDown}
-                  className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600 disabled:opacity-30"
-                >
-                  下移
-                </button>
-
-                <button
-                  onClick={onDelete}
-                  className="rounded-full bg-rose-50 px-3 py-1 text-xs font-black text-rose-600"
-                >
-                  刪除
-                </button>
-              </>
-            )}
-          </div>
+          <ActionButtons
+            item={item}
+            isAuto={isAuto}
+            canMoveUp={canMoveUp}
+            canMoveDown={canMoveDown}
+            onToggle={onToggle}
+            onDelete={onDelete}
+            onEdit={onEdit}
+            onMoveUp={onMoveUp}
+            onMoveDown={onMoveDown}
+            dark={false}
+          />
         </div>
       </div>
     </article>
@@ -1403,8 +1271,7 @@ function TransportTicketCard({
         ? "from-indigo-500 via-indigo-600 to-blue-700"
         : "from-cyan-500 via-sky-600 to-blue-700";
 
-  const ticketLabel =
-    type.label === "航班" ? "FLIGHT" : type.label === "火車" ? "TRAIN" : "BUS";
+  const ticketLabel = type.label === "航班" ? "FLIGHT" : type.label === "火車" ? "TRAIN" : "BUS";
 
   return (
     <article
@@ -1463,57 +1330,105 @@ function TransportTicketCard({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-900">
-          {money(item.estimatedCost, item.currency)}
-        </span>
-
-        {item.googleMapsLink && (
-          <a
-            href={item.googleMapsLink}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-full bg-white/15 px-3 py-1 text-xs font-black text-white backdrop-blur"
-          >
-            開啟地圖
-          </a>
-        )}
-
-        {!isAuto && (
-          <>
-            <button
-              onClick={onToggle}
-              className="rounded-full bg-white/15 px-3 py-1 text-xs font-black text-white backdrop-blur"
-            >
-              {item.completed ? "取消完成" : "標記完成"}
-            </button>
-
-            <button
-              onClick={onMoveUp}
-              disabled={!canMoveUp}
-              className="rounded-full bg-white/15 px-3 py-1 text-xs font-black text-white backdrop-blur disabled:opacity-40"
-            >
-              上移
-            </button>
-
-            <button
-              onClick={onMoveDown}
-              disabled={!canMoveDown}
-              className="rounded-full bg-white/15 px-3 py-1 text-xs font-black text-white backdrop-blur disabled:opacity-40"
-            >
-              下移
-            </button>
-
-            <button
-              onClick={onDelete}
-              className="rounded-full bg-rose-200 px-3 py-1 text-xs font-black text-rose-700"
-            >
-              刪除
-            </button>
-          </>
-        )}
-      </div>
+      <ActionButtons
+        item={item}
+        isAuto={isAuto}
+        canMoveUp={canMoveUp}
+        canMoveDown={canMoveDown}
+        onToggle={onToggle}
+        onDelete={onDelete}
+        onEdit={onEdit}
+        onMoveUp={onMoveUp}
+        onMoveDown={onMoveDown}
+        dark
+      />
     </article>
+  );
+}
+
+function ActionButtons({
+  item,
+  isAuto,
+  canMoveUp,
+  canMoveDown,
+  onToggle,
+  onDelete,
+  onEdit,
+  onMoveUp,
+  onMoveDown,
+  dark
+}: {
+  item: TimedItineraryItem;
+  isAuto: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onToggle: () => void;
+  onDelete: () => void;
+  onEdit: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  dark: boolean;
+}) {
+  const base = dark
+    ? "rounded-full bg-white/15 px-3 py-1 text-xs font-black text-white backdrop-blur disabled:opacity-40"
+    : "rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-[#12355B] disabled:opacity-30";
+
+  return (
+    <div className="mt-4 flex flex-wrap gap-2">
+      <span
+        className={
+          dark
+            ? "rounded-full bg-white px-3 py-1 text-xs font-black text-slate-900"
+            : "rounded-full bg-[#D6A84F]/20 px-3 py-1 text-xs font-black text-[#8A650C]"
+        }
+      >
+        {money(item.estimatedCost, item.currency)}
+      </span>
+
+      {item.googleMapsLink && (
+        <a
+          href={item.googleMapsLink}
+          target="_blank"
+          rel="noreferrer"
+          className={base}
+        >
+          開啟地圖
+        </a>
+      )}
+
+      {!isAuto && (
+        <>
+          <button onClick={onToggle} className={base}>
+            {item.completed ? "取消完成" : "標記完成"}
+          </button>
+
+          {!dark && (
+            <button onClick={onEdit} className={base}>
+              編輯
+            </button>
+          )}
+
+          <button onClick={onMoveUp} disabled={!canMoveUp} className={base}>
+            上移
+          </button>
+
+          <button onClick={onMoveDown} disabled={!canMoveDown} className={base}>
+            下移
+          </button>
+
+          <button
+            onClick={onDelete}
+            className={
+              dark
+                ? "rounded-full bg-rose-200 px-3 py-1 text-xs font-black text-rose-700"
+                : "rounded-full bg-rose-50 px-3 py-1 text-xs font-black text-rose-600"
+            }
+          >
+            刪除
+          </button>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -1658,10 +1573,7 @@ function BudgetPage({
   update: (d: TripDataV2) => void;
   onAdd: () => void;
 }) {
-  const totalHKD = data.expenses.reduce(
-    (sum, x) => sum + toHKD(x.amount, x.currency),
-    0
-  );
+  const totalHKD = data.expenses.reduce((sum, x) => sum + toHKD(x.amount, x.currency), 0);
 
   const accommodationHKD = data.expenses
     .filter(x => x.category === "Accommodation")
@@ -1743,9 +1655,7 @@ function BudgetPage({
                   <p className="text-xs font-black text-[#B85C38]">
                     {expense.date} · {categoryLabel[expense.category]}
                   </p>
-                  <h3 className="mt-1 text-lg font-black text-[#12355B]">
-                    {expense.title}
-                  </h3>
+                  <h3 className="mt-1 text-lg font-black text-[#12355B]">{expense.title}</h3>
                   <p className="mt-1 text-sm text-slate-500">
                     {money(expense.amount, expense.currency)} · 約{" "}
                     {money(toHKD(expense.amount, expense.currency), "HKD")}
@@ -1847,9 +1757,7 @@ function ShoppingCard({ item, onDelete }: { item: WishlistItem; onDelete: () => 
               <p className="text-xs font-black text-[#B85C38]">
                 {item.city || "未設定城市"} · {item.priority}
               </p>
-              <h3 className="mt-1 text-xl font-black text-[#12355B]">
-                {item.placeName}
-              </h3>
+              <h3 className="mt-1 text-xl font-black text-[#12355B]">{item.placeName}</h3>
             </div>
 
             <button onClick={onDelete} className="text-sm font-bold text-rose-500">
@@ -2069,7 +1977,8 @@ function ItineraryModal({
   onClose: () => void;
   onSave: (item: TimedItineraryItem) => void;
 }) {
-  const initialTime = initialItem?.time || fallbackTimeFromBlock(initialItem?.timeBlock || "Morning");
+  const initialTime =
+    initialItem?.time || fallbackTimeFromBlock(initialItem?.timeBlock || "Morning");
 
   const [title, setTitle] = useState(initialItem?.title || "");
   const [city, setCity] = useState(initialItem?.city || euroCity(selectedDate, data));
