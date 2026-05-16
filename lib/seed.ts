@@ -3,7 +3,7 @@ import type { TripData } from "./types";
 export const seedData = {
   trip: {
     id: "trip-2026-europe-birthday",
-    name: "黃梓甄🥰 中歐生日之旅",
+    name: "維維恩🥰 中歐生日之旅",
     startDate: "2026-05-18",
     endDate: "2026-06-01",
     route: "Vancouver → Frankfurt → Vienna → Prague → Budapest → Bratislava → Vienna → Frankfurt → Vancouver",
