@@ -2312,7 +2312,7 @@ function ShoppingCard({
             <span className="rounded-full bg-[#EEF5EA] px-3 py-1 text-xs font-black text-[#183B63]">
               {item.category}
             </span>
-            {item.completed && (
+            {(item as WishlistItem & { completed?: boolean }).completed && (
               <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
                 已加入行程
               </span>
@@ -2742,7 +2742,7 @@ function ItineraryModal({
       estimatedCost: Number(cost || 0),
       currency: initialItem?.currency || data.trip.mainCurrency,
       googleMapsLink,
-      completed: initialItem?.completed || false
+      completed: (initialItem as WishlistItem & { completed?: boolean } | undefined)?.completed || false
     });
   }
 
@@ -2890,7 +2890,7 @@ function AddShoppingModal({
       estimatedDuration,
       notes,
       googleMapsLink,
-      completed: initialItem?.completed || false
+      completed: (initialItem as WishlistItem & { completed?: boolean } | undefined)?.completed || false
     });
   }
 
