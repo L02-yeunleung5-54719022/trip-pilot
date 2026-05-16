@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { clearTripData, loadTripData, resetTripData, saveTripData } from "@/lib/storage";
 import type {
   DocumentItem,
@@ -211,6 +211,71 @@ function getDates(start: string, end: string) {
   return result;
 }
 
+function getTodayDateKey() {
+  return formatDateKey(new Date());
+}
+
+function getSmartDefaultDate(data: TripDataV2) {
+  const today = getTodayDateKey();
+  const start = data.trip.startDate;
+  const end = data.trip.endDate;
+
+  if (today < start) return "pretrip";
+  if (today > end) return end;
+  return today;
+}
+
+function formatCountdown(minutes: number) {
+  if (minutes <= 0) return "即將開始";
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+
+  if (hours <= 0) return `${mins}分鐘`;
+  if (mins === 0) return `${hours}小時`;
+  return `${hours}小時${mins}分鐘`;
+}
+
+function getCountdownText(item?: TimedItineraryItem) {
+  if (!item || item.date === "pretrip") return "";
+
+  const [hour, minute] = getItemTime(item).split(":").map(Number);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return "";
+
+  const target = parseDateKey(item.date);
+  target.setHours(hour, minute, 0, 0);
+
+  const diff = Math.ceil((target.getTime() - Date.now()) / 60000);
+
+  if (diff < -30) return "已過時間";
+  return `距離下一個行程 ${formatCountdown(Math.max(diff, 0))}`;
+}
+
+function makeMapsSearchLink(query: string) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+function buildRouteMapLink(items: TimedItineraryItem[]) {
+  const stops = items
+    .map(item => item.address || item.city || item.title)
+    .filter(Boolean)
+    .slice(0, 9);
+
+  if (stops.length === 0) return "";
+  if (stops.length === 1) return makeMapsSearchLink(stops[0]);
+
+  const origin = encodeURIComponent(stops[0]);
+  const destination = encodeURIComponent(stops[stops.length - 1]);
+  const waypoints = stops.slice(1, -1).map(encodeURIComponent).join("|");
+
+  return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypoints ? `&waypoints=${waypoints}` : ""}`;
+}
+
+async function copyText(text: string) {
+  if (typeof navigator !== "undefined" && navigator.clipboard) {
+    await navigator.clipboard.writeText(text);
+  }
+}
+
 function fallbackTimeFromBlock(block: TimeBlock) {
   if (block === "Morning") return "09:00";
   if (block === "Afternoon") return "14:00";
@@ -394,7 +459,7 @@ export default function TripPilotApp() {
   useEffect(() => {
     const loaded = loadTripData() as TripDataV2;
     setData(loaded);
-    setSelectedDate("pretrip");
+    setSelectedDate(getSmartDefaultDate(loaded));
   }, []);
 
   useEffect(() => {
@@ -439,7 +504,7 @@ export default function TripPilotApp() {
           <ShoppingPage data={data} update={update} onAdd={() => setShowAddShopping(true)} />
         )}
 
-        {activeTab === "info" && <InfoPage data={data} update={update} />}
+        {activeTab === "info" && <InfoPage data={data} update={update} selectedDate={selectedDate} />}
       </div>
 
       <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -763,7 +828,7 @@ function TripHome({
         />
       )}
 
-      <DaySelector dates={dates} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />
+      <DaySelector dates={dates} selectedDate={selectedDate} setSelectedDate={setSelectedDate} trip={data.trip} />
 
       {isPreTrip ? (
         <ChecklistPanel data={data} update={update} />
@@ -873,7 +938,7 @@ function DailySummaryCard({
         />
       </div>
 
-      {nextItem && (
+      {nextItem ? (
         <div className="mt-4 rounded-2xl border border-[#E8DED0] p-4 shadow-sm" style={{ backgroundColor: withAlpha(cityTheme.soft, "B3") }}>
           <p className="text-xs font-black" style={{ color: cityTheme.accent }}>
             下一個行程
@@ -881,6 +946,13 @@ function DailySummaryCard({
           <p className="mt-1 text-sm font-black text-[#183B63]">
             {getItemTime(nextItem)} · {nextItem.title}
           </p>
+          <p className="mt-1 text-xs font-bold text-[#6D7B8A]">
+            {getCountdownText(nextItem) || "按時間排序顯示"}
+          </p>
+        </div>
+      ) : (
+        <div className="mt-4 rounded-2xl border border-[#E8DED0] bg-[#EEF5EA] p-4 shadow-sm">
+          <p className="text-sm font-black text-[#7A9A6D]">今日行程已完成</p>
         </div>
       )}
 
@@ -1113,15 +1185,34 @@ function WeatherMini({ city, date }: { city: string; date: string }) {
 function DaySelector({
   dates,
   selectedDate,
-  setSelectedDate
+  setSelectedDate,
+  trip
 }: {
   dates: string[];
   selectedDate: string;
   setSelectedDate: (d: string) => void;
+  trip: TripDataV2["trip"];
 }) {
+  const todayTarget = getSmartDefaultDate({ trip, itinerary: [], accommodations: [], transport: [], expenses: [], wishlist: [], documents: [] });
+  const showTodayButton = todayTarget !== "pretrip";
+
   return (
     <div className="-mx-4 overflow-x-auto px-4">
       <div className="flex gap-3 pb-1">
+        {showTodayButton && (
+          <button
+            onClick={() => setSelectedDate(todayTarget)}
+            className={`min-w-20 rounded-3xl p-4 text-center shadow-[0_8px_20px_rgba(24,59,99,0.08)] transition ${
+              selectedDate === todayTarget
+                ? "bg-[#C86A45] text-white"
+                : "border border-[#E8DED0] bg-[#FFFDF8] text-[#C86A45]"
+            }`}
+          >
+            <p className="text-xs font-bold opacity-70">快速</p>
+            <p className="mt-1 text-lg font-black">今日</p>
+          </button>
+        )}
+
         <button
           onClick={() => setSelectedDate("pretrip")}
           className={`min-w-20 rounded-3xl p-4 text-center shadow-[0_8px_20px_rgba(24,59,99,0.08)] transition ${
@@ -1229,6 +1320,22 @@ function TimelineCard({
 }) {
   const type = getItemType(item);
 
+  if (type.label === "住宿") {
+    return (
+      <AccommodationStayCard
+        item={item}
+        isAuto={isAuto}
+        canMoveUp={canMoveUp}
+        canMoveDown={canMoveDown}
+        onToggle={onToggle}
+        onDelete={onDelete}
+        onEdit={onEdit}
+        onMoveUp={onMoveUp}
+        onMoveDown={onMoveDown}
+      />
+    );
+  }
+
   if (type.label === "航班" || type.label === "火車" || type.label === "巴士") {
     return (
       <TransportTicketCard
@@ -1318,6 +1425,77 @@ function TimelineCard({
   );
 }
 
+
+function AccommodationStayCard({
+  item,
+  isAuto,
+  canMoveUp,
+  canMoveDown,
+  onToggle,
+  onDelete,
+  onEdit,
+  onMoveUp,
+  onMoveDown
+}: {
+  item: TimedItineraryItem;
+  isAuto: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onToggle: () => void;
+  onDelete: () => void;
+  onEdit: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+}) {
+  const isCheckOut = item.title.includes("退房");
+  const itemTime = getItemTime(item);
+
+  return (
+    <article className="overflow-hidden rounded-[2rem] border border-[#E8DED0] bg-[#FFFDF8] p-5 shadow-[0_12px_30px_rgba(24,59,99,0.08)]">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.25em] text-[#C86A45]">
+            {isCheckOut ? "CHECK OUT" : "CHECK IN"}
+          </p>
+          <h3 className="mt-1 text-2xl font-black text-[#183B63]">{item.title}</h3>
+          <p className="mt-1 text-sm font-semibold text-[#6D7B8A]">
+            {item.date} · {itemTime} · {item.city}
+          </p>
+        </div>
+
+        <div className="grid h-14 w-14 place-items-center rounded-2xl bg-[#FCF1DF] text-2xl">
+          {isCheckOut ? "🧳" : "🏨"}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl bg-[#FAF6EF] p-4">
+        <p className="text-xs font-black text-[#6D7B8A]">地址</p>
+        <p className="mt-1 text-sm font-bold text-[#183B63]">{item.address || "未設定地址"}</p>
+      </div>
+
+      {item.notes && (
+        <div className="mt-3 rounded-2xl bg-[#EEF5EA] p-4">
+          <p className="text-xs font-black text-[#7A9A6D]">入住資料</p>
+          <p className="mt-1 text-sm leading-relaxed text-[#183B63]">{item.notes}</p>
+        </div>
+      )}
+
+      <TimelineActions
+        item={item}
+        isAuto={isAuto}
+        canMoveUp={canMoveUp}
+        canMoveDown={canMoveDown}
+        onToggle={onToggle}
+        onDelete={onDelete}
+        onEdit={onEdit}
+        onMoveUp={onMoveUp}
+        onMoveDown={onMoveDown}
+        light={false}
+      />
+    </article>
+  );
+}
+
 function TransportTicketCard({
   item,
   type,
@@ -1403,7 +1581,27 @@ function TransportTicketCard({
 
       <div className="mt-6 rounded-2xl bg-white/10 p-4 backdrop-blur">
         <p className="text-lg font-black">{item.title}</p>
-        {item.notes && <p className="mt-2 text-sm leading-relaxed text-white/85">{item.notes}</p>}
+
+        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+          <div className="rounded-2xl bg-white/10 p-3">
+            <p className="font-bold text-white/60">出發</p>
+            <p className="mt-1 font-black text-white">{fromCity} · {itemTime}</p>
+          </div>
+          <div className="rounded-2xl bg-white/10 p-3">
+            <p className="font-bold text-white/60">到達</p>
+            <p className="mt-1 font-black text-white">{toCity}</p>
+          </div>
+          <div className="rounded-2xl bg-white/10 p-3">
+            <p className="font-bold text-white/60">狀態</p>
+            <p className="mt-1 font-black text-white">{item.completed ? "已完成" : "已確認 / 待出發"}</p>
+          </div>
+          <div className="rounded-2xl bg-white/10 p-3">
+            <p className="font-bold text-white/60">提醒</p>
+            <p className="mt-1 font-black text-white">{getCountdownText(item) || "請預留交通時間"}</p>
+          </div>
+        </div>
+
+        {item.notes && <p className="mt-3 text-sm leading-relaxed text-white/85">{item.notes}</p>}
       </div>
 
       <TimelineActions
@@ -1516,15 +1714,22 @@ function MapPage({ data, selectedDate }: { data: TripDataV2; selectedDate: strin
 
   const places = [...itineraryPlaces, ...accommodationPlaces];
 
-  const todayPlaces = data.itinerary
-    .filter(item => item.date === selectedDate && item.address)
+  const todayItems = selectedDate === "pretrip"
+    ? []
+    : sortItineraryItems((data.itinerary as TimedItineraryItem[]).filter(item => item.date === selectedDate));
+
+  const todayPlaces = todayItems
+    .filter(item => item.address)
     .map(item => ({
       id: item.id,
       title: item.title,
       city: item.city,
       address: item.address,
-      googleMapsLink: item.googleMapsLink
+      googleMapsLink: item.googleMapsLink,
+      time: getItemTime(item)
     }));
+
+  const routeLink = buildRouteMapLink(todayItems);
 
   return (
     <div className="space-y-5">
@@ -1532,25 +1737,44 @@ function MapPage({ data, selectedDate }: { data: TripDataV2; selectedDate: strin
         <div className="relative h-56 p-6">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(211,146,50,0.25),transparent_30%),radial-gradient(circle_at_80%_10%,rgba(122,154,109,0.25),transparent_28%),linear-gradient(135deg,#FFFDF8,#F4EEE4)]" />
           <div className="relative z-10">
-            <p className="text-sm font-bold text-[#C86A45]">Map Center</p>
-            <h2 className="mt-1 text-3xl font-black">中歐地圖中心</h2>
+            <p className="text-sm font-bold text-[#C86A45]">Today Route</p>
+            <h2 className="mt-1 text-3xl font-black">今日路線</h2>
             <p className="mt-3 text-sm leading-relaxed text-[#6D7B8A]">
-              今日景點、住宿位置、交通站點同 Google Maps 導航。
+              按今日行程時間排序，一鍵開 Google Maps 導航。
             </p>
+
+            {routeLink && (
+              <a
+                href={routeLink}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-4 inline-block rounded-full bg-[#183B63] px-4 py-3 text-sm font-black text-white"
+              >
+                開啟全日路線
+              </a>
+            )}
           </div>
           <div className="absolute bottom-5 right-5 text-6xl opacity-80">🗺</div>
         </div>
       </section>
 
       <section>
-        <h2 className="mb-3 text-2xl font-black text-[#183B63]">今日地點</h2>
+        <h2 className="mb-3 text-2xl font-black text-[#183B63]">今日路線順序</h2>
         <div className="space-y-3">
           {todayPlaces.length === 0 && (
             <EmptyCard icon="📍" title="今日未有地址" text="在行程加入地址後，會顯示在這裡。" />
           )}
 
-          {todayPlaces.map(place => (
-            <PlaceCard key={place.id} title={place.title} city={place.city} address={place.address} link={place.googleMapsLink} />
+          {todayPlaces.map((place, index) => (
+            <RouteStepCard
+              key={place.id}
+              index={index + 1}
+              title={place.title}
+              city={place.city}
+              address={place.address}
+              link={place.googleMapsLink}
+              time={place.time}
+            />
           ))}
         </div>
       </section>
@@ -1563,6 +1787,57 @@ function MapPage({ data, selectedDate }: { data: TripDataV2; selectedDate: strin
           ))}
         </div>
       </section>
+    </div>
+  );
+}
+
+function RouteStepCard({
+  index,
+  title,
+  city,
+  address,
+  link,
+  time
+}: {
+  index: number;
+  title: string;
+  city: string;
+  address: string;
+  link?: string;
+  time: string;
+}) {
+  const fallback = makeMapsSearchLink(address || title);
+
+  return (
+    <div className="rounded-[1.75rem] border border-[#E8DED0] bg-[#FFFDF8] p-4 shadow-[0_8px_20px_rgba(24,59,99,0.08)]">
+      <div className="flex items-start gap-3">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#183B63] text-sm font-black text-white">
+          {index}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-black text-[#C86A45]">{time} · {city}</p>
+          <h3 className="mt-1 text-lg font-black text-[#183B63]">{title}</h3>
+          <p className="mt-1 text-sm text-[#6D7B8A]">{address}</p>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a
+              href={link || fallback}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full bg-[#183B63] px-3 py-2 text-xs font-black text-white"
+            >
+              導航
+            </a>
+            <button
+              onClick={() => copyText(address)}
+              className="rounded-full bg-[#FAF6EF] px-3 py-2 text-xs font-black text-[#183B63]"
+            >
+              複製地址
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1798,7 +2073,61 @@ function ShoppingCard({ item, onDelete }: { item: WishlistItem; onDelete: () => 
   );
 }
 
-function InfoPage({ data, update }: { data: TripDataV2; update: (d: TripDataV2) => void }) {
+function InfoPage({
+  data,
+  update,
+  selectedDate
+}: {
+  data: TripDataV2;
+  update: (d: TripDataV2) => void;
+  selectedDate: string;
+}) {
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+
+  function exportBackup() {
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json"
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `trippilot-backup-${formatDateKey(new Date())}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function importBackup(file?: File) {
+    if (!file) return;
+
+    try {
+      const raw = await file.text();
+      const parsed = JSON.parse(raw) as TripDataV2;
+      if (!parsed.trip || !Array.isArray(parsed.itinerary)) {
+        alert("這不是有效的 TripPilot backup。");
+        return;
+      }
+      update(parsed);
+      alert("已匯入 backup。");
+    } catch {
+      alert("匯入失敗，請檢查 JSON 檔案。");
+    }
+  }
+
+  function copyTodayItinerary() {
+    const targetDate = selectedDate === "pretrip" ? data.trip.startDate : selectedDate;
+    const items = sortItineraryItems(
+      (data.itinerary as TimedItineraryItem[]).filter(item => item.date === targetDate)
+    );
+
+    const content = [
+      `${targetDate} 今日行程`,
+      ...items.map(item => `${getItemTime(item)}｜${item.title}${item.address ? `｜${item.address}` : ""}${item.notes ? `｜${item.notes}` : ""}`)
+    ].join("\\n");
+
+    copyText(content);
+    alert("已複製今日行程。");
+  }
+
   return (
     <div className="space-y-5">
       <section className="rounded-[2.25rem] bg-[#183B63] p-6 text-white shadow-[0_12px_30px_rgba(24,59,99,0.18)]">
@@ -1809,13 +2138,51 @@ function InfoPage({ data, update }: { data: TripDataV2; update: (d: TripDataV2) 
         </p>
       </section>
 
+      <section className="rounded-[2rem] border border-[#E8DED0] bg-[#FFFDF8] p-5 shadow-[0_12px_30px_rgba(24,59,99,0.08)]">
+        <h2 className="text-xl font-black text-[#183B63]">離線資料 / Backup</h2>
+        <p className="mt-2 text-sm text-[#6D7B8A]">
+          將 localStorage 資料匯出成 JSON，旅行前可以備份到 iCloud / Files。
+        </p>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <button
+            onClick={exportBackup}
+            className="rounded-2xl bg-[#183B63] px-4 py-3 text-sm font-black text-white"
+          >
+            匯出 Backup
+          </button>
+
+          <button
+            onClick={() => importInputRef.current?.click()}
+            className="rounded-2xl bg-[#FAF6EF] px-4 py-3 text-sm font-black text-[#183B63]"
+          >
+            匯入 Backup
+          </button>
+
+          <button
+            onClick={copyTodayItinerary}
+            className="col-span-2 rounded-2xl bg-[#EEF5EA] px-4 py-3 text-sm font-black text-[#183B63]"
+          >
+            複製今日行程文字
+          </button>
+        </div>
+
+        <input
+          ref={importInputRef}
+          type="file"
+          accept="application/json"
+          className="hidden"
+          onChange={event => importBackup(event.target.files?.[0])}
+        />
+      </section>
+
       <InfoSection title="住宿" icon="🏨">
         {data.accommodations.map(stay => (
           <InfoCard
             key={stay.id}
             title={stay.name}
             subtitle={`${stay.city} · ${stay.checkInDate} → ${stay.checkOutDate}`}
-            text={`${stay.address} · ${money(stay.totalCost, stay.currency)} · ${stay.nights} 晚`}
+            text={`${stay.address} · ${money(stay.totalCost, stay.currency)} · ${stay.nights} 晚${stay.bookingReference ? ` · Booking: ${stay.bookingReference}` : ""}${stay.notes ? ` · ${stay.notes}` : ""}`}
           />
         ))}
       </InfoSection>
