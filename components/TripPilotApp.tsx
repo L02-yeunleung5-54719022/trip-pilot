@@ -547,7 +547,7 @@ function TripHero({ data }: { data: TripDataV2 }) {
         </div>
 
         {checklist.length > 0 && (
-          <div className="mt-4 rounded-2xl border border-white/45 bg-[#FFFDF8]/58 p-3 shadow-sm backdrop-blur-sm">
+          <div className="mt-4 rounded-2xl border border-[#E8DED0] bg-[#FAF6EF] p-3">
             <div className="flex items-center justify-between text-sm font-black">
               <span>行前準備</span>
               <span>
@@ -569,7 +569,7 @@ function TripHero({ data }: { data: TripDataV2 }) {
 
 function HeroStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/45 bg-[#FFFDF8]/58 p-3 shadow-sm backdrop-blur-sm">
+    <div className="rounded-2xl border border-[#E8DED0] bg-[#FAF6EF] p-3">
       <p className="text-xs text-[#6D7B8A]">{label}</p>
       <p className="mt-1 text-lg font-black text-[#183B63]">{value}</p>
     </div>
@@ -869,7 +869,7 @@ function DailySummaryCard({
       </div>
 
       {nextItem && (
-        <div className="mt-4 rounded-2xl border border-white/45 bg-[#FFFDF8]/58 p-4 shadow-sm backdrop-blur-sm">
+        <div className="mt-4 rounded-2xl p-4" style={{ backgroundColor: cityTheme.soft }}>
           <p className="text-xs font-black" style={{ color: cityTheme.accent }}>
             下一個行程
           </p>
@@ -1152,12 +1152,9 @@ function DaySelector({
   );
 }
 
-function MiniInfo({ label, value, color }: { label: string; value: string; color?: string }) {
+function MiniInfo({ label, value, color = "#FAF6EF" }: { label: string; value: string; color?: string }) {
   return (
-    <div
-      className="rounded-2xl border border-white/45 p-3 shadow-sm backdrop-blur-sm"
-      style={{ backgroundColor: color || "rgba(255,253,248,0.58)" }}
-    >
+    <div className="rounded-2xl p-3" style={{ backgroundColor: color }}>
       <p className="text-xs font-bold text-[#6D7B8A]">{label}</p>
       <p className="mt-1 text-sm font-black text-[#183B63]">{value}</p>
     </div>
@@ -1165,7 +1162,7 @@ function MiniInfo({ label, value, color }: { label: string; value: string; color
 }
 
 
-function CompactLocalTimeInfo({ city, color }: { city: string; color?: string }) {
+function CompactLocalTimeInfo({ city, color = "#FAF6EF" }: { city: string; color?: string }) {
   const [time, setTime] = useState("--:--");
   const label = cityCoords[city]?.label || city;
 
@@ -1189,10 +1186,7 @@ function CompactLocalTimeInfo({ city, color }: { city: string; color?: string })
   }, [city]);
 
   return (
-    <div
-      className="rounded-2xl border border-white/45 p-3 shadow-sm backdrop-blur-sm"
-      style={{ backgroundColor: color || "rgba(255,253,248,0.58)" }}
-    >
+    <div className="rounded-2xl p-3" style={{ backgroundColor: color }}>
       <p className="text-xs font-bold text-[#6D7B8A]">當地時間</p>
       <p className="mt-1 text-sm font-black text-[#183B63]">{time}</p>
       <p className="truncate text-[11px] font-semibold text-[#6D7B8A]">{label}</p>
