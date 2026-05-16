@@ -498,7 +498,6 @@ export default function TripPilotApp() {
 
 
 function TripHero({ data }: { data: TripDataV2 }) {
-  const totalAccommodation = data.accommodations.reduce((sum, x) => sum + x.totalCost, 0);
   const days =
     Math.ceil(
       (parseDateKey(data.trip.endDate).getTime() -
@@ -514,7 +513,7 @@ function TripHero({ data }: { data: TripDataV2 }) {
       className="relative overflow-hidden rounded-[2.25rem] border border-[#E8DED0] bg-[#FFFDF8] p-5 text-[#183B63] shadow-[0_12px_30px_rgba(24,59,99,0.08)]"
       style={{
         backgroundImage:
-          "linear-gradient(180deg, rgba(255,253,248,0.94) 0%, rgba(255,253,248,0.82) 42%, rgba(255,253,248,0.96) 100%), url('/dashboard-bg.png')",
+          "linear-gradient(180deg, rgba(255,253,248,0.78) 0%, rgba(255,253,248,0.58) 45%, rgba(255,253,248,0.90) 100%), url('/dashboard-bg.png')",
         backgroundSize: "cover",
         backgroundPosition: "center bottom",
         backgroundRepeat: "no-repeat"
@@ -532,9 +531,6 @@ function TripHero({ data }: { data: TripDataV2 }) {
             </h2>
           </div>
 
-          <div className="rounded-2xl bg-[#EEF5EA] px-3 py-2 text-sm font-black text-[#7A9A6D]">
-            ✈️ EU
-          </div>
         </div>
 
         <p className="text-sm font-bold text-[#6D7B8A]">
@@ -543,14 +539,15 @@ function TripHero({ data }: { data: TripDataV2 }) {
 
         <p className="mt-2 text-sm leading-relaxed text-[#4F5F70]">{data.trip.route}</p>
 
+        <div className="mt-4 rounded-2xl border border-[#E8DED0] bg-[#FFFDF8]/72 px-4 py-3 backdrop-blur-sm">
+          <p className="text-sm font-black tracking-wide text-[#6D7B8A]">
+            Vienna · Prague · Budapest · Bratislava
+          </p>
+        </div>
 
-        <div className="mt-4 grid grid-cols-3 gap-3">
+        <div className="mt-4 grid grid-cols-2 gap-3">
           <HeroStat label="天數" value={`${days}`} />
           <HeroStat label="城市" value="5" />
-          <HeroStat
-            label="住宿"
-            value={money(totalAccommodation, data.trip.mainCurrency).replace("HKD ", "$")}
-          />
         </div>
 
         {checklist.length > 0 && (
@@ -841,7 +838,7 @@ function DailySummaryCard({
     <section
       className="relative overflow-hidden rounded-[2rem] border border-[#E8DED0] bg-[#FFFDF8] p-5 shadow-[0_12px_30px_rgba(24,59,99,0.08)]"
       style={{
-        backgroundImage: `linear-gradient(180deg, rgba(255,253,248,0.95) 0%, rgba(255,253,248,0.84) 42%, rgba(255,253,248,0.97) 100%), url('${summaryBg}')`,
+        backgroundImage: `linear-gradient(180deg, rgba(255,253,248,0.80) 0%, rgba(255,253,248,0.62) 45%, rgba(255,253,248,0.91) 100%), url('${summaryBg}')`,
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat"
@@ -865,7 +862,7 @@ function DailySummaryCard({
       <div className="mt-4 grid grid-cols-3 gap-2">
         <MiniInfo label="行程" value={`${dayItems.length} 個`} color={cityTheme.soft} />
         <MiniInfo label="進度" value={`${progress}%`} color={cityTheme.soft} />
-        <MiniInfo label="主幣別" value={data.trip.mainCurrency} color={cityTheme.soft} />
+        <CompactLocalTimeInfo city={weatherCity} color={cityTheme.soft} />
       </div>
 
       <div className="mt-4 h-2 rounded-full bg-[#E8DED0]">
@@ -886,10 +883,6 @@ function DailySummaryCard({
         </div>
       )}
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <LocalTimeMini city={weatherCity} />
-        <ExchangeMini />
-      </div>
     </section>
   );
 }
@@ -1171,6 +1164,40 @@ function MiniInfo({ label, value, color = "#FAF6EF" }: { label: string; value: s
     </div>
   );
 }
+
+
+function CompactLocalTimeInfo({ city, color = "#FAF6EF" }: { city: string; color?: string }) {
+  const [time, setTime] = useState("--:--");
+  const label = cityCoords[city]?.label || city;
+
+  useEffect(() => {
+    const timezone = cityCoords[city]?.timezone || "Europe/Vienna";
+
+    function tick() {
+      const formatter = new Intl.DateTimeFormat("zh-HK", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: timezone
+      });
+
+      setTime(formatter.format(new Date()));
+    }
+
+    tick();
+    const timer = window.setInterval(tick, 60000);
+    return () => window.clearInterval(timer);
+  }, [city]);
+
+  return (
+    <div className="rounded-2xl p-3" style={{ backgroundColor: color }}>
+      <p className="text-xs font-bold text-[#6D7B8A]">當地時間</p>
+      <p className="mt-1 text-sm font-black text-[#183B63]">{time}</p>
+      <p className="truncate text-[11px] font-semibold text-[#6D7B8A]">{label}</p>
+    </div>
+  );
+}
+
 
 function TimelineCard({
   item,
