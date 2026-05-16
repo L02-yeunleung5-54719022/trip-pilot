@@ -8,7 +8,7 @@ export const seedData = {
     endDate: "2026-06-01",
     route: "Vancouver → Frankfurt → Vienna → Prague → Budapest → Bratislava → Vienna → Frankfurt → Vancouver",
     mainCurrency: "HKD",
-    travelers: ["Chris", "黃梓甄"]
+    travelers: ["Chris", "維維恩"]
   },
 
   accommodations: [
