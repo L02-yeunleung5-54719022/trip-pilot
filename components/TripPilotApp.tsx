@@ -57,8 +57,8 @@ function money(amount: number, currency = "HKD") {
     maximumFractionDigits: 2
   })}`;
 }
-f
-  unction parseDateKey(date: string) {
+
+function parseDateKey(date: string) {
   const [year, month, day] = date.split("-").map(Number);
   return new Date(year, month - 1, day);
 }
