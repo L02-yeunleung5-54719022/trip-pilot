@@ -340,7 +340,7 @@ export default function TripPilotApp() {
   useEffect(() => {
     const loaded = loadTripData() as TripDataV2;
     setData(loaded);
-    setSelectedDate(loaded.trip.startDate);
+    setSelectedDate("pretrip");
   }, []);
 
   useEffect(() => {
@@ -560,6 +560,8 @@ function TripHome({
   const itineraryItems = (data.itinerary as TimedItineraryItem[]).filter(
     item => item.date === selectedDate
   );
+  
+  const isPreTrip = selectedDate === "pretrip";
 
   const stayItems: TimedItineraryItem[] = data.accommodations.flatMap(stay => {
     const items: TimedItineraryItem[] = [];
@@ -703,65 +705,69 @@ function TripHome({
         setSelectedDate={setSelectedDate}
       />
 
-      <DailySummaryCard
-        data={data}
-        selectedDate={selectedDate}
-        city={city}
-        weatherCity={weatherCity}
-        dayItems={dayItems}
-        completedCount={completedCount}
-        nextItem={nextItem}
-      />
+     {isPreTrip ? (
+  <ChecklistPanel data={data} update={update} />
+) : (
+  <>
+    <DailySummaryCard
+      data={data}
+      selectedDate={selectedDate}
+      city={city}
+      weatherCity={weatherCity}
+      dayItems={dayItems}
+      completedCount={completedCount}
+      nextItem={nextItem}
+    />
 
-      {selectedDate === data.trip.startDate && (
-        <ChecklistPanel data={data} update={update} />
-      )}
-
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-bold text-[#B85C38]">Timeline</p>
-            <h2 className="text-2xl font-black text-[#12355B]">今日行程</h2>
-          </div>
-
-          <button
-            onClick={onAdd}
-            className="rounded-full bg-[#B85C38] px-4 py-3 text-sm font-black text-white shadow-lg"
-          >
-            ＋新增
-          </button>
+    <section>
+      <div className="mb-3 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-bold text-[#B85C38]">Timeline</p>
+          <h2 className="text-2xl font-black text-[#12355B]">今日行程</h2>
         </div>
 
-        <div className="space-y-4">
-          {dayItems.length === 0 && (
-            <EmptyCard
-              icon="🗓"
-              title="今日未有行程"
-              text="可以加入景點、交通、餐廳或住宿安排。"
+        <button
+          onClick={onAdd}
+          className="rounded-full bg-[#B85C38] px-4 py-3 text-sm font-black text-white shadow-lg"
+        >
+          ＋新增
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        {dayItems.length === 0 && (
+          <EmptyCard
+            icon="🗓"
+            title="今日未有行程"
+            text="可以加入景點、交通、餐廳或住宿安排。"
+          />
+        )}
+
+        {dayItems.map(item => {
+          const isAuto = item.id.startsWith("auto-");
+          const moveIndex = nonAutoDayItems.findIndex(movable => movable.id === item.id);
+
+          return (
+            <TimelineCard
+              key={item.id}
+              item={item}
+              isAuto={isAuto}
+              canMoveUp={!isAuto && moveIndex > 0}
+              canMoveDown={!isAuto && moveIndex >= 0 && moveIndex < nonAutoDayItems.length - 1}
+              onToggle={() => toggleComplete(item.id)}
+              onDelete={() => deleteItem(item.id)}
+              onEdit={() => onEdit(item)}
+              onMoveUp={() => moveItem(item.id, "up")}
+              onMoveDown={() => moveItem(item.id, "down")}
             />
-          )}
+          );
+        })}
+      </div>
+    </section>
+  </>
+)}
 
-          {dayItems.map(item => {
-            const isAuto = item.id.startsWith("auto-");
-            const moveIndex = nonAutoDayItems.findIndex(movable => movable.id === item.id);
-
-            return (
-              <TimelineCard
-                key={item.id}
-                item={item}
-                isAuto={isAuto}
-                canMoveUp={!isAuto && moveIndex > 0}
-                canMoveDown={!isAuto && moveIndex >= 0 && moveIndex < nonAutoDayItems.length - 1}
-                onToggle={() => toggleComplete(item.id)}
-                onDelete={() => deleteItem(item.id)}
-                onEdit={() => onEdit(item)}
-                onMoveUp={() => moveItem(item.id, "up")}
-                onMoveDown={() => moveItem(item.id, "down")}
-              />
-            );
-          })}
-        </div>
-      </section>
+      
     </div>
   );
 }
@@ -1038,10 +1044,17 @@ function DaySelector({
   return (
     <div className="-mx-4 overflow-x-auto px-4">
       <div className="flex gap-3 pb-1">
-        <button className="min-w-20 rounded-3xl bg-white p-4 text-center shadow-lg">
-          <p className="text-xs font-bold text-slate-400">行前</p>
-          <p className="mt-1 text-lg font-black text-[#B85C38]">清單</p>
-        </button>
+       <button
+  onClick={() => setSelectedDate("pretrip")}
+  className={`min-w-20 rounded-3xl p-4 text-center shadow-lg transition ${
+    selectedDate === "pretrip"
+      ? "bg-[#12355B] text-white"
+      : "bg-white text-slate-600"
+  }`}
+>
+  <p className="text-xs font-bold opacity-70">行前</p>
+  <p className="mt-1 text-lg font-black">清單</p>
+</button>
 
         {dates.map((date, index) => {
           const active = date === selectedDate;
