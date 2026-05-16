@@ -88,8 +88,6 @@ function getDates(start: string, end: string) {
   return result;
 }
 
-  return result;
-}
 
 function getItemIcon(title: string, notes = "") {
   const text = `${title} ${notes}`.toLowerCase();
