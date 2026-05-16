@@ -2734,7 +2734,8 @@ function ItineraryModal({
       notes,
       estimatedCost: Number(cost || 0),
       currency: initialItem?.currency || data.trip.mainCurrency,
-      googleMapsLink
+      googleMapsLink,
+      completed: initialItem?.completed || false
     });
   }
 
