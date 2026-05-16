@@ -49,6 +49,7 @@ export interface ItineraryItem {
   city: string;
   date: string;
   time?: string;
+  order?: number;
   timeBlock: TimeBlock;
   address: string;
   notes: string;
@@ -126,6 +127,14 @@ export interface DocumentItem {
   notes: string;
 }
 
+export interface ChecklistItem {
+  id: string;
+  title: string;
+  category: "Documents" | "Packing" | "Money" | "Transport" | "Other";
+  completed: boolean;
+  notes: string;
+}
+
 export interface TripData {
   trip: Trip;
   itinerary: ItineraryItem[];
@@ -134,4 +143,5 @@ export interface TripData {
   expenses: Expense[];
   wishlist: WishlistItem[];
   documents: DocumentItem[];
+  checklist?: ChecklistItem[];
 }
