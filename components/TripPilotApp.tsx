@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { clearTripData, loadTripData, resetTripData, saveTripData } from "@/lib/storage";
+import { loadTripDataFromCloud, saveTripDataToCloud, syncEnabled } from "@/lib/sync";
 import type {
   DocumentItem,
   Expense,
@@ -13,6 +14,7 @@ import type {
 } from "@/lib/types";
 
 type MainTab = "trip" | "map" | "budget" | "shopping" | "info";
+type CloudStatus = "off" | "loading" | "synced" | "saving" | "error";
 type ChecklistCategory = "Documents" | "Packing" | "Money" | "Transport" | "Other";
 
 type ChecklistItem = {
@@ -455,16 +457,114 @@ export default function TripPilotApp() {
   const [editingItem, setEditingItem] = useState<TimedItineraryItem | null>(null);
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showAddShopping, setShowAddShopping] = useState(false);
+  const [cloudStatus, setCloudStatus] = useState<CloudStatus>(syncEnabled ? "loading" : "off");
+  const cloudReadyRef = useRef(false);
+  const saveTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const loaded = loadTripData() as TripDataV2;
-    setData(loaded);
-    setSelectedDate(getSmartDefaultDate(loaded));
+    let cancelled = false;
+
+    async function boot() {
+      const localData = loadTripData() as TripDataV2;
+      if (cancelled) return;
+
+      setData(localData);
+      setSelectedDate(getSmartDefaultDate(localData));
+
+      if (!syncEnabled) {
+        cloudReadyRef.current = true;
+        setCloudStatus("off");
+        return;
+      }
+
+      try {
+        setCloudStatus("loading");
+        const cloudData = (await loadTripDataFromCloud()) as TripDataV2 | null;
+        if (cancelled) return;
+
+        if (cloudData) {
+          setData(cloudData);
+          saveTripData(cloudData);
+          setSelectedDate(getSmartDefaultDate(cloudData));
+        } else {
+          await saveTripDataToCloud(localData);
+        }
+
+        cloudReadyRef.current = true;
+        setCloudStatus("synced");
+      } catch {
+        cloudReadyRef.current = true;
+        setCloudStatus("error");
+      }
+    }
+
+    boot();
+
+    return () => {
+      cancelled = true;
+      if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
-    if (data) saveTripData(data);
+    if (!data) return;
+
+    saveTripData(data);
+
+    if (!syncEnabled || !cloudReadyRef.current) return;
+
+    setCloudStatus("saving");
+
+    if (saveTimerRef.current) {
+      window.clearTimeout(saveTimerRef.current);
+    }
+
+    saveTimerRef.current = window.setTimeout(async () => {
+      try {
+        const ok = await saveTripDataToCloud(data);
+        setCloudStatus(ok ? "synced" : "error");
+      } catch {
+        setCloudStatus("error");
+      }
+    }, 900);
   }, [data]);
+
+  async function syncFromCloud() {
+    if (!syncEnabled) {
+      setCloudStatus("off");
+      return;
+    }
+
+    try {
+      setCloudStatus("loading");
+      const cloudData = (await loadTripDataFromCloud()) as TripDataV2 | null;
+
+      if (cloudData) {
+        setData(cloudData);
+        saveTripData(cloudData);
+        setSelectedDate(getSmartDefaultDate(cloudData));
+      }
+
+      setCloudStatus("synced");
+    } catch {
+      setCloudStatus("error");
+    }
+  }
+
+  async function syncToCloudNow() {
+    if (!data || !syncEnabled) {
+      setCloudStatus("off");
+      return;
+    }
+
+    try {
+      setCloudStatus("saving");
+      const ok = await saveTripDataToCloud(data);
+      setCloudStatus(ok ? "synced" : "error");
+    } catch {
+      setCloudStatus("error");
+    }
+  }
 
   if (!data) {
     return (
@@ -504,7 +604,16 @@ export default function TripPilotApp() {
           <ShoppingPage data={data} update={update} onAdd={() => setShowAddShopping(true)} />
         )}
 
-        {activeTab === "info" && <InfoPage data={data} update={update} selectedDate={selectedDate} />}
+        {activeTab === "info" && (
+            <InfoPage
+              data={data}
+              update={update}
+              selectedDate={selectedDate}
+              cloudStatus={cloudStatus}
+              syncFromCloud={syncFromCloud}
+              syncToCloudNow={syncToCloudNow}
+            />
+          )}
       </div>
 
       <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
@@ -2076,11 +2185,17 @@ function ShoppingCard({ item, onDelete }: { item: WishlistItem; onDelete: () => 
 function InfoPage({
   data,
   update,
-  selectedDate
+  selectedDate,
+  cloudStatus,
+  syncFromCloud,
+  syncToCloudNow
 }: {
   data: TripDataV2;
   update: (d: TripDataV2) => void;
   selectedDate: string;
+  cloudStatus: CloudStatus;
+  syncFromCloud: () => Promise<void>;
+  syncToCloudNow: () => Promise<void>;
 }) {
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -2135,6 +2250,40 @@ function InfoPage({
         <h2 className="mt-1 text-3xl font-black">旅行資訊庫</h2>
         <p className="mt-2 text-sm leading-relaxed text-white/75">
           住宿、交通、文件、緊急資料同設定集中放在這裡。
+        </p>
+      </section>
+
+      <section className="rounded-[2rem] border border-[#E8DED0] bg-[#FFFDF8] p-5 shadow-[0_12px_30px_rgba(24,59,99,0.08)]">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-black text-[#183B63]">雲端同步</h2>
+            <p className="mt-1 text-sm text-[#6D7B8A]">
+              兩部電話使用同一個 Trip ID：birthday-europe-2026
+            </p>
+          </div>
+          <CloudStatusBadge status={cloudStatus} />
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <button
+            onClick={syncFromCloud}
+            disabled={cloudStatus === "loading" || cloudStatus === "saving"}
+            className="rounded-2xl bg-[#183B63] px-4 py-3 text-sm font-black text-white disabled:opacity-50"
+          >
+            從雲端更新
+          </button>
+
+          <button
+            onClick={syncToCloudNow}
+            disabled={cloudStatus === "loading" || cloudStatus === "saving"}
+            className="rounded-2xl bg-[#EEF5EA] px-4 py-3 text-sm font-black text-[#183B63] disabled:opacity-50"
+          >
+            立即上傳
+          </button>
+        </div>
+
+        <p className="mt-3 text-xs leading-relaxed text-[#6D7B8A]">
+          App 會自動保存到雲端；另一部電話重新整理或按「從雲端更新」就會見到最新資料。
         </p>
       </section>
 
@@ -2232,6 +2381,22 @@ function InfoPage({
         </div>
       </section>
     </div>
+  );
+}
+
+function CloudStatusBadge({ status }: { status: CloudStatus }) {
+  const config: Record<CloudStatus, { label: string; style: string }> = {
+    off: { label: "未連線", style: "bg-gray-100 text-gray-600" },
+    loading: { label: "讀取中", style: "bg-amber-50 text-amber-700" },
+    synced: { label: "已同步", style: "bg-emerald-50 text-emerald-700" },
+    saving: { label: "儲存中", style: "bg-blue-50 text-blue-700" },
+    error: { label: "同步錯誤", style: "bg-rose-50 text-rose-700" }
+  };
+
+  return (
+    <span className={`shrink-0 rounded-full px-3 py-2 text-xs font-black ${config[status].style}`}>
+      {config[status].label}
+    </span>
   );
 }
 
